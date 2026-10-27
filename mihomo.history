@@ -1,0 +1,452 @@
+# Mihomo external-controller API Reference
+
+> Source: [wiki.metacubex.one/en/api](https://wiki.metacubex.one/en/api)  
+> Fetched: 2026-10-27  
+> Project: `ayatsuri` — `lib/main.dart` `ClashController`
+
+All endpoints require `Authorization: Bearer <secret>`.
+
+```
+curl -H 'Authorization: Bearer ***' http://${controller-api}/endpoint
+```
+
+---
+
+## Version
+
+### `GET /version`
+
+Retrieve mihomo version info.
+
+| Field  | Type             | Description                    |
+| ------ | ---------------- | ------------------------------ |
+| `meta` | `bool`           | Whether this is a Meta build   |
+| `version` | `string`       | Version string                 |
+
+---
+
+## Proxies
+
+### `GET /proxies`
+
+Retrieve all proxy and group information.
+
+Response: `{ "proxies": { "<name>": { … } } }`
+
+**Common fields** (every entry):
+
+| Field            | Type    | Description                                                |
+| ---------------- | ------- | ---------------------------------------------------------- |
+| `name`           | string  | Proxy or group name                                        |
+| `type`           | string  | `Shadowsocks`, `VMess`, `DIRECT`, `Selector`, `URLTest`, `Fallback`, `LoadBalance`, etc. |
+| `udp`            | bool    | Whether UDP is supported                                   |
+| `uot`            | bool    | Whether UDP over TCP is supported                          |
+| `xudp`           | bool    | Whether XUDP is supported                                  |
+| `tfo`            | bool    | Whether TCP Fast Open is enabled                           |
+| `mptcp`          | bool    | Whether MPTCP is enabled                                   |
+| `smux`           | bool    | Whether stream multiplexing is enabled                     |
+| `alive`          | bool    | Whether the proxy is currently alive                       |
+| `history`        | array   | Delay history entries, each with `time` and `delay` (ms)   |
+| `extra`          | object  | Extra delay histories grouped by test URL                  |
+| `interface`      | string  | Bound network interface name                               |
+| `routing-mark`   | int     | Routing mark value                                          |
+| `provider-name`  | string  | Name of the proxy provider this proxy belongs to           |
+| `dialer-proxy`   | string  | Underlying dialer proxy name                                |
+
+**Policy group extra fields** (`Selector`, `URLTest`, `Fallback`, `LoadBalance`):
+
+| Field           | Type    | Description                                                        |
+| --------------- | ------- | ------------------------------------------------------------------ |
+| `now`           | string  | Currently selected node name (absent for `LoadBalance`)           |
+| `all`           | array   | Array of all node/group names in the group                         |
+| `testUrl`       | string  | Health check URL                                                    |
+| `hidden`        | bool    | Whether the group is hidden in the dashboard                       |
+| `icon`          | string  | Icon URL                                                            |
+| `emptyFallback` | string  | Fallback node name used when all members are unavailable           |
+| `expectedStatus`| int     | Expected HTTP response status code for health checks (absent for `Selector`) |
+| `fixed`         | string  | Currently pinned node name (only `URLTest` and `Fallback`)         |
+
+### `GET /proxies/<name>`
+
+Retrieve a specific proxy or group.
+
+### `PUT /proxies/<name>`
+
+Select a specific proxy within a policy group.
+
+Body: `{"name": "Japan"}`
+
+Response: HTTP 204
+
+### `DELETE /proxies/<name>`
+
+Clear the fixed selection of the proxy/policy group (except for `Selector` type).
+
+Response: HTTP 204
+
+### `GET /proxies/<name>/delay`
+
+Test a specified proxy and return new delay information.
+
+Query parameters:
+
+| Parameter | Type   | Default                  | Description                                       |
+| --------- | ------ | ------------------------ | ------------------------------------------------- |
+| `url`     | string | (required)               | Test URL                                          |
+| `timeout` | int    | 5000                     | Timeout in milliseconds                           |
+| `expected`| string | (optional)               | Expected HTTP status code; supports ranges (`200/204`, `200-299`) |
+
+Response: `{ "delay": <uint16> }` (milliseconds)
+
+---
+
+## Policy Groups
+
+### `GET /group`
+
+Retrieve all policy groups.
+
+Response: `{ "proxies": [ { … }, … ] }` (same format as `/proxies/<name>`)
+
+### `GET /group/<name>`
+
+Retrieve a specific policy group.
+
+### `GET /group/<name>/delay`
+
+Test all nodes/strategy groups within the specified strategy group; clears the fixed selection of automatic strategy groups.
+
+Query: `?url=xxx&timeout=5000&expected=xxx`
+
+Response: `{ "<nodeName>": <delay_ms>, … }`
+
+---
+
+## Running Configuration
+
+### `GET /configs`
+
+Retrieve the current running configuration.
+
+Response: JSON object including `port`, `socks-port`, `mixed-port`, `mode`, `log-level`, `allow-lan`, `ipv6`, `tun`, and other fields.
+
+### `PUT /configs`
+
+Reload basic configuration.
+
+Query: `?force=true`
+
+Response: HTTP 204
+
+### `PATCH /configs`
+
+Update a single configuration field.
+
+Body: `{"mixed-port": 7890}`
+
+Response: HTTP 204
+
+### `POST /configs/geo`
+
+Update the GEO database.
+
+Body: `{"path": "", "payload": ""}`
+
+Response: HTTP 204
+
+---
+
+## Cache
+
+### `POST /cache/fakeip/flush`
+
+Clear the fake IP cache.
+
+Response: HTTP 204
+
+### `POST /cache/dns/flush`
+
+Clear the DNS cache.
+
+Response: HTTP 204
+
+---
+
+## Connections
+
+### `GET /connections`
+
+Retrieve active connections. Also available as WebSocket (streaming).
+
+Query: `?interval=<milliseconds>` (default 1000)
+
+Response:
+
+| Field          | Type   | Description                                     |
+| -------------- | ------ | ----------------------------------------------- |
+| `downloadTotal`| int    | Cumulative downloaded bytes                     |
+| `uploadTotal`  | int    | Cumulative uploaded bytes                       |
+| `memory`       | int    | Current memory usage (bytes)                    |
+| `connections`  | array  | Active connection objects:                       |
+|                |        | - `id`: unique connection ID                    |
+|                |        | - `metadata`: source/dest address, protocol, process |
+|                |        | - `upload` / `download`: bytes on this conn     |
+|                |        | - `start`: connection start time                |
+|                |        | - `chains`: proxy chain array                   |
+|                |        | - `providerChains`: provider proxy chain array  |
+|                |        | - `rule`: matched rule type                     |
+|                |        | - `rulePayload`: matched rule content           |
+
+### `DELETE /connections`
+
+Close all connections.
+
+Response: HTTP 204
+
+### `DELETE /connections/<id>`
+
+Close a specific connection.
+
+Response: HTTP 204
+
+---
+
+## Rules
+
+### `GET /rules`
+
+Retrieve all rules.
+
+Response: `{ "rules": [ { … }, … ] }`
+
+| Field     | Type   | Description                                            |
+| --------- | ------ | ------------------------------------------------------ |
+| `index`   | int    | Rule index (0-based)                                    |
+| `type`    | string | Rule type (`DOMAIN`, `IP-CIDR`, `GEOIP`, etc.)         |
+| `payload` | string | Rule match content                                      |
+| `proxy`   | string | Target proxy or policy group name                       |
+| `size`    | int    | Number of entries in the rule set (only for `GEOIP`/`GEOSITE`, `-1` otherwise) |
+| `extra`   | object | Optional: `disabled`, `hitCount`, `hitAt`, `missCount`, `missAt` |
+
+### `PATCH /rules/disable`
+
+Disable rules by index. Temporary; reset after restart.
+
+Body: `{"0": false, "1": true}`
+
+Response: HTTP 204
+
+---
+
+## Proxy Providers
+
+### `GET /providers/proxies`
+
+Retrieve all proxy provider information.
+
+Response: `{ "providers": { "<name>": { … } } }`
+
+### `GET /providers/proxies/<name>`
+
+Retrieve a specific proxy provider.
+
+### `PUT /providers/proxies/<name>`
+
+Update a proxy provider.
+
+Response: HTTP 204
+
+### `GET /providers/proxies/<name>/healthcheck`
+
+Trigger a health check for a proxy provider.
+
+Response: HTTP 204
+
+### `GET /providers/proxies/<name>/proxies/<proxy_name>`
+
+Retrieve a specific proxy within a proxy provider.
+
+### `GET /providers/proxies/<name>/proxies/<proxy_name>/healthcheck`
+
+Test a specified proxy within a proxy provider.
+
+Query: `?url=xxx&timeout=5000`
+
+Response: `{ "delay": <uint16> }`
+
+---
+
+## Rule Providers
+
+### `GET /providers/rules`
+
+Retrieve all rule providers.
+
+### `PUT /providers/rules/<name>`
+
+Update a rule provider.
+
+Response: HTTP 204
+
+---
+
+## Traffic / Memory / Logs (streaming)
+
+### `GET /traffic`
+
+Real-time traffic; pushed once per second.
+
+| Field     | Type | Description                  |
+| --------- | ---- | ---------------------------- |
+| `up`      | int  | Current upload rate (bytes/s)|
+| `down`    | int  | Current download rate (bytes/s)|
+| `upTotal` | int  | Cumulative uploaded bytes    |
+| `downTotal`| int  | Cumulative downloaded bytes  |
+
+### `GET /memory`
+
+Real-time memory usage; pushed once per second.
+
+| Field    | Type | Description              |
+| -------- | ---- | ------------------------ |
+| `inuse`  | int  | Current memory in use (bytes) |
+| `oslimit`| int  | OS memory limit (always 0) |
+
+### `GET /logs`
+
+Real-time logs. Also available as WebSocket.
+
+Query:
+
+| Parameter | Type   | Description                                       |
+| --------- | ------ | ------------------------------------------------- |
+| `level`   | string | `info`, `warning`, `error`, `debug`               |
+| `format`  | string | `structured` for structured output (default: standard) |
+
+Standard response (one JSON per line):
+
+```json
+{ "type": "info", "payload": "log message" }
+```
+
+Structured response:
+
+```json
+{ "time": "HH:MM:SS", "level": "info", "message": "…", "fields": [] }
+```
+
+---
+
+## DNS
+
+### `GET /dns/query`
+
+Query DNS for a specified name and type.
+
+Query: `?name=example.com&type=A`
+
+Response: standard DNS message format (`Status`, `Question`, `TC`, `RD`, `RA`, `AD`, `CD`, `Answer`, `Authority`, `Additional`).
+
+---
+
+## Storage
+
+### `GET /storage/<key>`
+
+Retrieve a stored value. Returns `null` if the key does not exist.
+
+### `PUT /storage/<key>`
+
+Write a JSON value (maximum 1 MB).
+
+Body: `{"foo": "bar"}`
+
+Response: HTTP 204
+
+### `DELETE /storage/<key>`
+
+Delete a stored value.
+
+Response: HTTP 204
+
+---
+
+## Restart / Upgrade
+
+### `POST /restart`
+
+Restart the mihomo kernel.
+
+Body: `{"path": "", "payload": ""}`
+
+Response: HTTP 204
+
+### `POST /upgrade`
+
+Update the kernel.
+
+Query: `?channel=xxx&force=true`
+
+Body: `{"path": "", "payload": ""}`
+
+Response: `{ "status": "ok" }`
+
+### `POST /upgrade/ui`
+
+Update the external UI. Requires `external-ui` to be set.
+
+Response: `{ "status": "ok" }`
+
+### `POST /upgrade/geo`
+
+Update the GEO database.
+
+Body: `{"path": "", "payload": ""}`
+
+Response: HTTP 204
+
+---
+
+## DEBUG
+
+> Requires kernel started with `log-level: debug`.
+
+### `PUT /debug/gc`
+
+Perform active garbage collection.
+
+Response: HTTP 204
+
+### `GET /debug/pprof`
+
+Open in browser for raw DEBUG information:
+
+- `allocs` — memory allocation per function call
+- `heap` — heap memory usage detail
+
+Graphical reports via Graphviz:
+
+```shell
+go tool pprof -http=:8080 http://127.0.0.1:xxxx/debug/pprof/heap
+go tool pprof -http=:8080 http://127.0.0.1:xxxx/debug/pprof/allocs
+```
+
+---
+
+## Configuration Reference
+
+### External Controller
+
+```yaml
+external-controller: 127.0.0.1:9090
+secret: ""
+external-controller-cors:
+  allow-origins:
+    - "*"
+  allow-private-network: true
+external-controller-unix: mihomo.sock
+external-controller-pipe: \\.\pipe\mihomo
+external-controller-tls: 127.0.0.1:9443
+external-controller-routing-mark: 0
+external-doh-server: /dns-query
+```
