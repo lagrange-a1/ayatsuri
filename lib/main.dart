@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'endpoints.dart';
+import 'views/proxy_map_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,13 +21,63 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'ayatsuri',
       theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
-      home: const MihomoDashboard(),
+      home: const MihomoApp(),
+    );
+  }
+}
+
+/// Bottom-navigation shell wrapping the dashboard and the proxy map page.
+class MihomoApp extends StatefulWidget {
+  const MihomoApp({super.key});
+
+  @override
+  State<MihomoApp> createState() => _MihomoAppState();
+}
+
+class _MihomoAppState extends State<MihomoApp> {
+  int _index = 0;
+  late final MihomoAPI _api;
+
+  @override
+  void initState() {
+    super.initState();
+    _api = MihomoAPI();
+  }
+
+  List<Widget> get pages => [
+        MihomoDashboard(api: _api),
+        ProxyMapPage(api: _api),
+      ];
+
+  List<BottomNavigationBarItem> get items => [
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard, size: 28),
+          label: 'Dashboard',
+        ),
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.public, size: 28),
+          label: 'Map',
+        ),
+      ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(index: _index, children: pages),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _index,
+        onTap: (i) => setState(() => _index = i),
+        items: items,
+        type: BottomNavigationBarType.fixed,
+      ),
     );
   }
 }
 
 class MihomoDashboard extends StatefulWidget {
-  const MihomoDashboard({super.key});
+  const MihomoDashboard({super.key, required this.api});
+
+  final MihomoAPI api;
 
   @override
   State<MihomoDashboard> createState() => _MihomoDashboardState();
@@ -51,7 +102,7 @@ class _MihomoDashboardState extends State<MihomoDashboard> {
   @override
   void initState() {
     super.initState();
-    _api = MihomoAPI();
+    _api = widget.api;
   }
 
   Future<void> _fetchEverything() async {

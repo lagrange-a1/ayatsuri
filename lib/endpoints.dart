@@ -6,6 +6,9 @@ class MihomoAPI {
   late final String baseUrl;
 
   MihomoAPI() {
+    if (!dotenv.isInitialized) {
+      dotenv.load();
+    }
     final host = dotenv.env['host'] ?? 'localhost';
     final port = dotenv.env['port'] ?? '9091';
     final secret = dotenv.env['secret'] ?? '***';

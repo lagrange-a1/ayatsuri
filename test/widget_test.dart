@@ -1,30 +1,31 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ayatsuri/main.dart';
 
-void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+void main() async {
+  // `main()` is not called by the widget test, so dotenv must be loaded
+  // inside the test body (the binding already exists there).
+  testWidgets('App has a map page and a bottom navigation bar',
+      (WidgetTester tester) async {
+    await dotenv.load();
     // Build our app and trigger a frame.
     await tester.pumpWidget(const MyApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // The dashboard page appears as the first tab.
+    expect(find.text('No data yet'), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // The bottom navigation bar exists and has two items.
+    expect(find.byIcon(Icons.dashboard), findsOneWidget);
+    expect(find.byIcon(Icons.public), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Tap the map tab.
+    await tester.tap(find.byIcon(Icons.public));
+    await tester.pumpAndSettle();
+
+    // The map page exists and can search for candidate nodes.
+    expect(find.text('Select a node · World Map'), findsOneWidget);
+    expect(find.text('Tap a country on the map.'), findsOneWidget);
   });
 }
