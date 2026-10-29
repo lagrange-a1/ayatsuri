@@ -13,11 +13,12 @@ void main() async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const MyApp());
 
-    // The dashboard page appears as the first tab.
+    // The info page is the first tab, requesting controller state in the
+    // background (there may or may not be a live controller in the test env).
     expect(find.text('No data yet'), findsOneWidget);
 
     // The bottom navigation bar exists and has two items.
-    expect(find.byIcon(Icons.dashboard), findsOneWidget);
+    expect(find.byIcon(Icons.info), findsOneWidget);
     expect(find.byIcon(Icons.public), findsOneWidget);
 
     // Tap the map tab.

@@ -26,7 +26,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// Bottom-navigation shell wrapping the dashboard and the proxy map page.
+/// Bottom-navigation shell wrapping the system info page and the proxy map page.
 class MihomoApp extends StatefulWidget {
   const MihomoApp({super.key});
 
@@ -45,14 +45,14 @@ class _MihomoAppState extends State<MihomoApp> {
   }
 
   List<Widget> get pages => [
-        MihomoDashboard(api: _api),
+        MihomoInfo(api: _api),
         ProxyMapPage(api: _api),
       ];
 
   List<BottomNavigationBarItem> get items => [
         const BottomNavigationBarItem(
-          icon: Icon(Icons.dashboard, size: 28),
-          label: 'Dashboard',
+          icon: Icon(Icons.info, size: 28),
+          label: 'Info',
         ),
         BottomNavigationBarItem(
           icon: const Icon(Icons.public, size: 28),
@@ -74,16 +74,16 @@ class _MihomoAppState extends State<MihomoApp> {
   }
 }
 
-class MihomoDashboard extends StatefulWidget {
-  const MihomoDashboard({super.key, required this.api});
+class MihomoInfo extends StatefulWidget {
+  const MihomoInfo({super.key, required this.api});
 
   final MihomoAPI api;
 
   @override
-  State<MihomoDashboard> createState() => _MihomoDashboardState();
+  State<MihomoInfo> createState() => _MihomoInfoState();
 }
 
-class _MihomoDashboardState extends State<MihomoDashboard> {
+class _MihomoInfoState extends State<MihomoInfo> {
   late final MihomoAPI _api;
   bool _loading = false;
   String? _error;
@@ -103,6 +103,8 @@ class _MihomoDashboardState extends State<MihomoDashboard> {
   void initState() {
     super.initState();
     _api = widget.api;
+    // Fetch the controller state as soon as the page starts.
+    _fetchEverything();
   }
 
   Future<void> _fetchEverything() async {
@@ -176,7 +178,7 @@ class _MihomoDashboardState extends State<MihomoDashboard> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text('ayatsuri · Mihomo Dashboard'),
+        title: const Text('ayatsuri · Mihomo Info'),
         actions: [
           IconButton(
             onPressed: _loading ? null : _fetchEverything,
