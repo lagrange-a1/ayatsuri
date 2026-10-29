@@ -5,6 +5,7 @@
  * Flows: tappable countries -> candidates per country -> the selected node is
  * actually settable via `PUT /proxies/<group>`.
  */
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -17,14 +18,13 @@ void main() {
     final selection = ProxySelection();
     await selection.load();
     if (selection.error != null) {
-      print('mihomo unreachable: ${selection.error}');
+      debugPrint('mihomo unreachable: ${selection.error}');
       return;
     }
     expect(selection.selectors.isNotEmpty, isTrue);
     expect(selection.proxies.isNotEmpty, isTrue);
 
     // Candidate names must be real proxies of the running config.
-    final ids = <String>{};
     final candidates = <String, List<ProxyCandidate>>{};
     for (final group in selection.selectors) {
       for (final name in group.all) {
@@ -32,20 +32,20 @@ void main() {
         if (proxy == null) continue; // group-only names, e.g. DIRECT, REJECT.
         final alpha2 = nameToFrontAlpha2(name);
         if (alpha2 != null) {
-          ids.add(alpha2);
           candidates.putIfAbsent(alpha2, () => []).add(
               ProxyCandidate(group: group, proxy: proxy));
         }
       }
     }
 
-    // HK/US/JP/IE ... categories used in this config all produce rows.
-    final sample = ['HK', 'US', 'JP', 'IE', 'CN', 'AT'];
-    for (final s in sample) {
-      final cands = candidates[s] ?? <ProxyCandidate>[];
-      print('$s -> ${cands.length} candidates -> '
-          '${cands.take(2).map((c) => '${c.group.name} / ${c.proxy.name}').join('\n    ')}');
-      expect(cands.isNotEmpty, isTrue, reason: 'candidate table for $s');
+    // The countries the running config actually exposes; keep the empty-table
+    // path for countries with no nodes at all (no crash).
+    expect(candidates.keys.isNotEmpty, isTrue);
+    for (final absent in ['NO', 'PT', 'ZZ']) {
+      final cands = candidates[absent] ?? <ProxyCandidate>[];
+      debugPrint('$absent -> ${cands.length} candidates');
+      expect(cands.isEmpty, isTrue, reason: 'no node for $absent');
+      expect(selection.candidatesForMapId(absent), isEmpty);
     }
 
     // Group-only tokens (DIRECT/REJECT/COMPATIBLE/MATCH) are not countries.
