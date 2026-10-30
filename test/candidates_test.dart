@@ -32,8 +32,9 @@ void main() {
         if (proxy == null) continue; // group-only names, e.g. DIRECT, REJECT.
         final alpha2 = nameToFrontAlpha2(name);
         if (alpha2 != null) {
-          candidates.putIfAbsent(alpha2, () => []).add(
-              ProxyCandidate(group: group, proxy: proxy));
+          candidates
+              .putIfAbsent(alpha2, () => [])
+              .add(ProxyCandidate(group: group, proxy: proxy));
         }
       }
     }

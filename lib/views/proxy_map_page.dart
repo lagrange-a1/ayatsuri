@@ -33,9 +33,9 @@ class _ProxyMapPageState extends State<ProxyMapPage> {
   final _controller = WorldMapController();
   late final ProxySelection _selection;
   List<ProxyCandidate> _candidates = [];
-
   String? _selectedId;
   Set<String>? _visibleIds;
+  bool _probing = false;
 
   @override
   void initState() {
@@ -68,12 +68,35 @@ class _ProxyMapPageState extends State<ProxyMapPage> {
     }
   }
 
+  Future<void> _pick(String id) async {
+    setState(() {
+      _selectedId = id;
+      _candidates = [];
+      _probing = true;
+    });
+    await _selection.load();
+    if (!mounted) return;
+    setState(() => _candidates = _selection.candidatesForMapId(id));
+    // Probe every candidate so the list shows real latencies.
+    if (_candidates.isEmpty) {
+      if (mounted) setState(() => _probing = false);
+      return;
+    }
+    await Future.wait(
+      _candidates.map((c) => _selection.probeByName(c.proxy.name)),
+    );
+    if (mounted) {
+      setState(() {
+        _candidates = _selection.candidatesForMapId(id);
+        _probing = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Select a node · World Map'),
-      ),
+      appBar: AppBar(title: const Text('Select a node · World Map')),
       body: LayoutBuilder(
         builder: (context, constraints) {
           return Column(
@@ -84,9 +107,9 @@ class _ProxyMapPageState extends State<ProxyMapPage> {
                   padding: const EdgeInsets.all(8),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: ClipRRect(
@@ -100,7 +123,7 @@ class _ProxyMapPageState extends State<ProxyMapPage> {
                               allowZoom: true,
                               selectOnTap: false,
                               toggleSelectionOnTap: true,
-                              onCountryTap: _onTap,
+                              onCountryTap: _pick,
                               style: const WorldMapStyle(
                                 landFillColor: Color(0xFF202020),
                                 selectedFillColor: Color(0xFF9C27B0),
@@ -121,9 +144,9 @@ class _ProxyMapPageState extends State<ProxyMapPage> {
                                   const SizedBox(width: 8),
                                   Text(
                                     'Selected: ${_selectedId ?? 'None'}',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
                                   ),
                                 ],
                               ),
@@ -138,45 +161,67 @@ class _ProxyMapPageState extends State<ProxyMapPage> {
               // ── Results ────────────────────────────────────────────
               Flexible(
                 flex: 1,
-                child: Card(
-                  margin: const EdgeInsets.all(12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Nodes for ${_selectedId ?? '—'}',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 8),
-                        if (_selectedId == null)
-                          const Text('Tap a country on the map.')
-                        else if (_candidates.isEmpty)
-                          const Text('No matching node for this country.')
-                        else
-                          Expanded(
-                            child: ListView(
-                              children: _candidates
-                                  .map(
-                                    (candidate) => ListTile(
-                                      title: Text(candidate.group.name),
-                                      subtitle:
-                                          Text(candidate.group.now ?? ''),
-                                      leading: Text(candidate.proxy.name),
-                                      isThreeLine: true,
-                                      tileColor: candidate.isNow
-                                          ? Theme.of(context)
-                                              .colorScheme
-                                              .secondaryContainer
-                                          : null,
-                                      onTap: () => _onSelect(candidate),
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
+                child: SizedBox.expand(
+                  child: Card(
+                    margin: const EdgeInsets.all(12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Nodes for ${_selectedId ?? '—'}',
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
-                      ],
+                          const SizedBox(height: 8),
+                          if (_selectedId == null)
+                            const Text('Tap a country on the map.')
+                          else if (_probing)
+                            const Text('Probing nodes...')
+                          else if (_candidates.isEmpty)
+                            const Text('No matching node for this country.')
+                          else
+                            Expanded(
+                              child: ListView(
+                                children: _candidates.map((candidate) {
+                                  final delay = candidate.proxy.delay;
+                                  final color = delayColor(delay);
+                                  return ListTile(
+                                    leading: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        // Colored status dot: unprobed/grey,
+                                        // blocked/red, fast/green, slow/red.
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            color: color,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(candidate.proxy.name),
+                                      ],
+                                    ),
+                                    title: Text(candidate.group.name),
+                                    subtitle: Text(
+                                      delayLabel(delay),
+                                      style: TextStyle(color: color),
+                                    ),
+                                    isThreeLine: true,
+                                    tileColor: candidate.isNow
+                                        ? Theme.of(
+                                            context,
+                                          ).colorScheme.secondaryContainer
+                                        : null,
+                                    onTap: () => _onSelect(candidate),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -186,13 +231,6 @@ class _ProxyMapPageState extends State<ProxyMapPage> {
         },
       ),
     );
-  }
-
-  Future<void> _onTap(String id) async {
-    setState(() {
-      _selectedId = id;
-      _candidates = _selection.candidatesForMapId(id);
-    });
   }
 
   Future<void> _onSelect(ProxyCandidate candidate) async {

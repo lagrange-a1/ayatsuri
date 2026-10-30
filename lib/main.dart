@@ -44,21 +44,20 @@ class _MihomoAppState extends State<MihomoApp> {
     _api = MihomoAPI();
   }
 
-  List<Widget> get pages => [
-        MihomoInfo(api: _api),
-        ProxyMapPage(api: _api),
-      ];
+  /// The map page is the home tab; both pages auto-fetch controller state when
+  /// they are first built (startup), so the visible page is always fresh.
+  List<Widget> get pages => [ProxyMapPage(api: _api), MihomoInfo(api: _api)];
 
   List<BottomNavigationBarItem> get items => [
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.info, size: 28),
-          label: 'Info',
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.public, size: 28),
-          label: 'Map',
-        ),
-      ];
+    BottomNavigationBarItem(
+      icon: const Icon(Icons.public, size: 28),
+      label: 'Map',
+    ),
+    const BottomNavigationBarItem(
+      icon: Icon(Icons.info, size: 28),
+      label: 'Info',
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -202,7 +201,7 @@ class _MihomoInfoState extends State<MihomoInfo> {
           : null,
       body: _error != null
           ? Center(
-              child: Padding(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   crossAxisAlignment: .center,

@@ -283,14 +283,17 @@ String? nameToFrontAlpha2(String proxyName) {
     final match = RegExp(r'[A-Z]{3}').firstMatch(tail);
     if (match != null) {
       for (final entry in kCountries.entries) {
-        if (entry.value.alpha3.toUpperCase() == match.group(0)) return entry.key;
+        if (entry.value.alpha3.toUpperCase() == match.group(0))
+          return entry.key;
       }
     }
   }
   // Case 2: flag / native name / alpha-2 code, e.g. `🇭🇰`, `香港`, `HKG`.
   for (final entry in kCountries.entries) {
     for (final pattern in entry.value.patterns) {
-      if (RegExp(r'(?<!\w)' + pattern.toUpperCase() + r'(?!\w)').hasMatch(name)) {
+      if (RegExp(
+        r'(?<!\w)' + pattern.toUpperCase() + r'(?!\w)',
+      ).hasMatch(name)) {
         return entry.key;
       }
     }
