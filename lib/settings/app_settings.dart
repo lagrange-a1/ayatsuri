@@ -66,7 +66,7 @@ enum AppLocale {
 
 /// Color <-> ARGB32 int. Non-numeric values fall back to the default seed.
 Color _colorFromJson(Object? v) =>
-    v is num ? Color(v.toInt()) : const Color(0xFF6750A4);
+    v is num ? Color(v.toInt()) : const Color(0xFFE65100);
 
 int _colorToJson(Color c) => c.toARGB32();
 
@@ -129,7 +129,7 @@ abstract class AppSettings with _$AppSettings {
   const factory AppSettings({
     @Default(ThemeMode.system) ThemeMode themeMode,
     @JsonKey(name: 'seed', fromJson: _colorFromJson, toJson: _colorToJson)
-    @Default(Color(0xFF6750A4))
+    @Default(Color(0xFFE65100))
     Color seedColor,
     @Default(false) bool pureBlack,
     @JsonKey(name: 'variant')

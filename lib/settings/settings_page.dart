@@ -422,10 +422,30 @@ class _SettingsTextFieldState extends State<_SettingsTextField> {
   late final TextEditingController _controller = TextEditingController(
     text: widget.initialValue,
   );
+  final FocusNode _focusNode = FocusNode();
   late bool _obscure = widget.obscureText;
+
+  void _commitIfDirty() {
+    if (_controller.text != widget.initialValue) {
+      widget.onCommit(_controller.text);
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Commit when focus leaves the field (tab switch, tap elsewhere) —
+    // onEditingComplete alone never fires for mouse/touch users, which
+    // made the connection fields look unsaved.
+    _focusNode.addListener(() {
+      if (!_focusNode.hasFocus) _commitIfDirty();
+    });
+  }
 
   @override
   void dispose() {
+    _commitIfDirty();
+    _focusNode.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -434,6 +454,7 @@ class _SettingsTextFieldState extends State<_SettingsTextField> {
   Widget build(BuildContext context) {
     return TextField(
       controller: _controller,
+      focusNode: _focusNode,
       obscureText: _obscure,
       keyboardType: widget.keyboardType,
       decoration: InputDecoration(

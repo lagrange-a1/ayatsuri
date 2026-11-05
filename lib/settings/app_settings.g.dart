@@ -11,7 +11,7 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
       $enumDecodeNullable(_$ThemeModeEnumMap, json['themeMode']) ??
       ThemeMode.system,
   seedColor: json['seed'] == null
-      ? const Color(0xFF6750A4)
+      ? const Color(0xFFE65100)
       : _colorFromJson(json['seed']),
   pureBlack: json['pureBlack'] as bool? ?? false,
   schemeVariant:

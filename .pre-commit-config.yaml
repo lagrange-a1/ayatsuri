@@ -9,7 +9,7 @@ repos:
         pass_filenames: false
       - id: dart-analyze
         name: dart analyze
-        entry: sh -c 'flutter pub get --quiet && exec dart analyze --fatal-warnings'
+        entry: sh -c 'flutter pub get && exec dart analyze --fatal-warnings'
         language: system
         types_or: [dart]
         pass_filenames: false
