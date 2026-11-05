@@ -314,7 +314,8 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
                         ? constraints.maxWidth
                         : constraints.maxHeight) /
                     2 *
-                    0.4;
+                    0.45 *
+                    _s.globeScale;
                 return Stack(
                   children: [
                     Positioned.fill(
