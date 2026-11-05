@@ -26,8 +26,8 @@ class ProxyItem {
   final bool alive;
   final double? latency;
 
-  /// Latency (ms) of the last block probe; `null` if never probed, `0` if the
-  /// probe is blocked.
+  /// Latency (ms) of the last probe; `null` if never probed, `0` if the
+  /// probe reported blocked, `-1` ([kDelayTimeout]) if the probe timed out.
   final int? delay;
 }
 
@@ -154,7 +154,7 @@ class ProxySelection {
   Future<List<ProxyCandidate>> probe(
     List<ProxyCandidate> candidates, {
     String url = kDefaultProbeUrl,
-    int timeout = 5000,
+    int timeout = kProbeTimeoutMs,
   }) async {
     final out = <ProxyCandidate>[];
     for (final candidate in candidates) {
@@ -170,7 +170,10 @@ class ProxySelection {
         await _updateDelay(candidate.proxy.name, delay);
         out.add(candidate);
       } on DioException {
-        continue;
+        // Probe failure (node unreachable within the probe timeout):
+        // record the timeout state instead of leaving the row grey.
+        await _updateDelay(candidate.proxy.name, kDelayTimeout);
+        out.add(candidate);
       }
     }
     return out;
@@ -180,7 +183,7 @@ class ProxySelection {
   Future<void> probeByName(
     String name, {
     String url = kDefaultProbeUrl,
-    int timeout = 5000,
+    int timeout = kProbeTimeoutMs,
   }) async {
     try {
       final response = await _api.testProxyDelay(
@@ -192,8 +195,9 @@ class ProxySelection {
       final delay = (data['delay'] as num?)?.toInt();
       if (delay == null) return;
       await _updateDelay(name, delay);
-    } on DioException catch (e) {
-      error = e.toString();
+    } on DioException {
+      // No data came back within the probe timeout: show TIMEOUT.
+      await _updateDelay(name, kDelayTimeout);
     }
   }
 
@@ -233,10 +237,18 @@ class ProxySelection {
 /// Used by `testProxyDelay` as default probe URL.
 const kDefaultProbeUrl = 'https://www.gstatic.com/generate_204';
 
+/// Probe timeout (ms), matching the Clash Verge Rev / mihomo default.
+/// `ProxyItem.delay` is [kDelayTimeout] when a probe dies with this.
+const kProbeTimeoutMs = 5000;
+
+/// Sentinel delay for a probe that timed out (shown red bold as TIMEOUT).
+const kDelayTimeout = -1;
+
 /// Probe-result color coding (`ms`): green under 100, amber 100–300, red over
 /// 300; `red` when the probe was blocked, `grey` when never probed.
 Color delayColor(int? delay) {
   if (delay == null) return Colors.grey;
+  if (delay == kDelayTimeout) return Colors.red;
   if (delay == 0) return Colors.red;
   return delay < 100
       ? Colors.green
@@ -249,6 +261,7 @@ Color delayColor(int? delay) {
 /// `N ms` for the reported latency.
 String delayLabel(AppLocalizations l10n, int? delay) {
   if (delay == null) return '—';
+  if (delay == kDelayTimeout) return l10n.timeout;
   if (delay == 0) return l10n.blocked;
   return l10n.delayMs(delay);
 }

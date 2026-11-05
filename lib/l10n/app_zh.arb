@@ -137,5 +137,6 @@
   "languageZh": "简体中文",
   "languageEn": "English",
   "globeScale": "地球大小",
-  "initialViewAuto": "自动（当前节点）"
+  "initialViewAuto": "自动（当前节点）",
+  "timeout": "超时"
 }

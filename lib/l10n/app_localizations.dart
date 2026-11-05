@@ -535,6 +535,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Auto (current proxy)'**
   String get initialViewAuto;
+
+  /// No description provided for @timeout.
+  ///
+  /// In en, this message translates to:
+  /// **'TIMEOUT'**
+  String get timeout;
 }
 
 class _AppLocalizationsDelegate

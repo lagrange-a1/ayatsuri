@@ -242,4 +242,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get initialViewAuto => 'Auto (current proxy)';
+
+  @override
+  String get timeout => 'TIMEOUT';
 }

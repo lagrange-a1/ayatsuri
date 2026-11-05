@@ -624,7 +624,12 @@ class _CountrySheetState extends State<_CountrySheet> {
                       title: Text(candidate.group.name),
                       subtitle: Text(
                         delayLabel(l10n, delay),
-                        style: TextStyle(color: color),
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: delay == kDelayTimeout
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
                       ),
                       trailing: _selecting == candidate.proxy.name
                           ? const SizedBox(

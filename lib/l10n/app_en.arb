@@ -137,5 +137,6 @@
   "languageZh": "简体中文",
   "languageEn": "English",
   "globeScale": "Globe size",
-  "initialViewAuto": "Auto (current proxy)"
+  "initialViewAuto": "Auto (current proxy)",
+  "timeout": "TIMEOUT"
 }

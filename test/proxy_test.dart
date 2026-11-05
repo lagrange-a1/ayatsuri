@@ -167,6 +167,8 @@ void main() async {
     final zh = lookupAppLocalizations(const Locale('zh'));
     expect(delayLabel(en, null), '—');
     expect(delayLabel(en, 0), 'blocked');
+    expect(delayLabel(en, kDelayTimeout), 'TIMEOUT');
+    expect(delayLabel(zh, kDelayTimeout), '超时');
     expect(delayLabel(en, 42), '42 ms');
     expect(delayLabel(zh, 0), '已屏蔽');
     expect(delayLabel(zh, 42), '42 毫秒');
@@ -175,6 +177,7 @@ void main() async {
   test('delay colors follow the thresholds', () {
     expect(delayColor(null), Colors.grey);
     expect(delayColor(0), Colors.red);
+    expect(delayColor(kDelayTimeout), Colors.red);
     expect(delayColor(50), Colors.green);
     expect(delayColor(99), Colors.green);
     expect(delayColor(100), Colors.amber);

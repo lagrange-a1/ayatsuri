@@ -242,4 +242,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get initialViewAuto => '自动（当前节点）';
+
+  @override
+  String get timeout => '超时';
 }
