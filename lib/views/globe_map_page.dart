@@ -161,7 +161,33 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
       _loadError = _selection.error;
       _globeDataError = false;
     });
+    _maybeResolveAutoView();
     _syncPoints();
+  }
+
+  /// Initial view "auto": resolve the currently-selected proxy's country
+  /// once, select it, and focus the globe on it.
+  void _maybeResolveAutoView() {
+    if (_s.initialView != InitialView.auto || _selectedAlpha2 != null) return;
+    String? alpha2;
+    for (final group in _selection.selectors) {
+      final now = group.now;
+      if (now == null) continue;
+      alpha2 = nameToFrontAlpha2(now);
+      if (alpha2 != null) break;
+    }
+    if (alpha2 == null) return;
+    _selectedAlpha2 = alpha2;
+    final centroid = _shapes?.centroidFor(alpha2);
+    if (centroid != null && !_isTest) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _globeController.globeKey.currentState?.focusOnCoordinates(
+          GlobeCoordinates(centroid.$1, centroid.$2),
+          animate: false,
+          duration: null,
+        );
+      });
+    }
   }
 
   /// Marker points for every country that has candidate nodes, plus a

@@ -136,5 +136,6 @@
   "languageSystem": "跟随系统",
   "languageZh": "简体中文",
   "languageEn": "English",
-  "globeScale": "地球大小"
+  "globeScale": "地球大小",
+  "initialViewAuto": "自动（当前节点）"
 }

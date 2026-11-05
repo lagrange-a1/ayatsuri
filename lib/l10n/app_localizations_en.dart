@@ -239,4 +239,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get globeScale => 'Globe size';
+
+  @override
+  String get initialViewAuto => 'Auto (current proxy)';
 }

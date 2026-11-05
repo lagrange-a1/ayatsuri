@@ -24,7 +24,13 @@ import 'background_file.dart';
 const _prefsKey = 'ayatsuri_settings_v1';
 const _schemaVersion = 1;
 
-enum InitialView { asia, global, custom }
+enum InitialView {
+  /// Follow the currently selected proxy's country (resolved at runtime).
+  auto,
+  asia,
+  global,
+  custom,
+}
 
 enum ProbeSort { delay, name }
 
@@ -56,7 +62,7 @@ class AppSettings {
     this.rotationSpeed = 0.01,
     this.markerScale = 1.0,
     this.globeScale = 1.0,
-    this.initialView = InitialView.asia,
+    this.initialView = InitialView.auto,
     this.customLat = 28,
     this.customLng = 100,
     this.maxDelayMs = 0,
@@ -95,12 +101,12 @@ class AppSettings {
   double get latLngLat => switch (initialView) {
     InitialView.global => 0,
     InitialView.custom => customLat,
-    InitialView.asia => 28,
+    InitialView.auto || InitialView.asia => 28,
   };
   double get latLngLng => switch (initialView) {
     InitialView.global => 0,
     InitialView.custom => customLng,
-    InitialView.asia => 100,
+    InitialView.auto || InitialView.asia => 100,
   };
 
   AppSettings copyWith({

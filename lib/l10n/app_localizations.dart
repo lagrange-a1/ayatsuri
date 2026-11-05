@@ -529,6 +529,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Globe size'**
   String get globeScale;
+
+  /// No description provided for @initialViewAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto (current proxy)'**
+  String get initialViewAuto;
 }
 
 class _AppLocalizationsDelegate

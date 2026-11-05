@@ -239,4 +239,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get globeScale => '地球大小';
+
+  @override
+  String get initialViewAuto => '自动（当前节点）';
 }

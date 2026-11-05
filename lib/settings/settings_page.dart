@@ -236,6 +236,10 @@ class SettingsPage extends StatelessWidget {
                   underline: const SizedBox.shrink(),
                   items: [
                     DropdownMenuItem(
+                      value: InitialView.auto,
+                      child: Text(l10n.initialViewAuto),
+                    ),
+                    DropdownMenuItem(
                       value: InitialView.asia,
                       child: Text(l10n.asiaView),
                     ),
