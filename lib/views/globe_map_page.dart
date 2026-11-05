@@ -42,7 +42,10 @@ class GlobeMapPage extends StatefulWidget {
 }
 
 class _GlobeMapPageState extends State<GlobeMapPage> {
-  late final ProxySelection _selection;
+  // Default to an empty selection (and settings) so a restart/rebuild path
+  // that uses State before initState finishes never hits
+  // LateInitializationError; initState swaps in the real instances.
+  ProxySelection _selection = ProxySelection();
   late final FlutterEarthGlobeController _globeController;
   CountryShapes? _shapes;
   final Set<String> _pointIds = {};
@@ -54,7 +57,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
   Timer? _probeTimer;
   bool _probingAll = false;
   int _tapToken = 0;
-  late final AppSettingsController _settings;
+  AppSettingsController _settings = AppSettingsController();
 
   AppSettings get _s => _settings.settings;
 
