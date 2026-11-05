@@ -10,7 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dart-lang/setup-dart@v1
+      # Pin the same Flutter/Dart as local dev (3.38.7) so the formatter
+      # and analyzer match; `dart analyze` needs `flutter pub get` first.
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.38.7'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
