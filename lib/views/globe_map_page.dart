@@ -151,7 +151,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
         if (mounted) _focusInitial();
       });
     }
-    _restartProbeTimer();
+    _restartProbeTimer(immediate: _probeTimer == null);
     if (!_isTest) {
       // NOTE: assigning `controller.isRotating` alone only flips a flag;
       // the animation keeps running. Use the start/stop methods so
@@ -176,7 +176,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
     });
     _refreshKernelCountry();
     _maybeResolveAutoView();
-    _restartProbeTimer();
+    _restartProbeTimer(immediate: true);
     _syncPoints();
   }
 
@@ -207,13 +207,17 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
     return Duration(seconds: seconds < 5 ? 5 : seconds);
   }
 
-  void _restartProbeTimer() {
+  void _restartProbeTimer({bool immediate = false}) {
     _probeTimer?.cancel();
     _probeTimer = null;
     if (_isTest) return;
     final interval = _effectiveProbeInterval();
     if (interval == null) return;
     _probeTimer = Timer.periodic(interval, (_) => _probeAllNodes());
+    // On (re)load and on off→on transitions, start the first sweep right
+    // away instead of waiting a full interval; _probeAllNodes no-ops
+    // until the selection is loaded.
+    if (immediate) Timer(Duration.zero, _probeAllNodes);
   }
 
   /// Clash Verge Rev-style background probing: test every known proxy so
