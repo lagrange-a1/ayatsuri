@@ -130,6 +130,7 @@ Map<String, dynamic> _normalize(Map<String, dynamic> j) {
   enumKey('probeSort', ProbeSort.values, ProbeSort.delay);
   enumKey('locale', AppLocale.values, AppLocale.system);
   enumKey('globeQuality', GlobeTextureQuality.values, GlobeTextureQuality.k8);
+  enumKey('globeTime', GlobeTime.values, GlobeTime.day);
 
   m['textScale'] = _clampNum(m['textScale'], 1.0, 0.85, 1.3);
   m['bgOpacity'] = _clampNum(m['bgOpacity'], 0.65, 0.0, 1.0);
@@ -197,7 +198,7 @@ abstract class AppSettings with _$AppSettings {
     @JsonKey(name: 'globeQuality')
     @Default(GlobeTextureQuality.k8)
     GlobeTextureQuality globeQuality,
-    @JsonKey(name: 'globeTime') @Default(GlobeTime.system) GlobeTime globeTime,
+    @JsonKey(name: 'globeTime') @Default(GlobeTime.day) GlobeTime globeTime,
 
     /// Periodic full-probe interval in seconds; -1 disables the timer.
     @JsonKey(name: 'probeInterval') @Default(30) int probeIntervalSec,

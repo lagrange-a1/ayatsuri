@@ -278,9 +278,9 @@ Color delayColor(int? delay) {
   if (delay == null) return Colors.grey;
   if (delay == kDelayTimeout) return Colors.red;
   if (delay == 0) return Colors.red;
-  return delay < 100
+  return delay < 500
       ? Colors.green
-      : delay < 300
+      : delay < 5000
       ? Colors.amber
       : Colors.red;
 }

@@ -42,7 +42,7 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
       GlobeTextureQuality.k8,
   globeTime:
       $enumDecodeNullable(_$GlobeTimeEnumMap, json['globeTime']) ??
-      GlobeTime.system,
+      GlobeTime.day,
   probeIntervalSec: (json['probeInterval'] as num?)?.toInt() ?? 30,
   compactNodeList: json['compact'] as bool? ?? false,
   locale:
