@@ -256,6 +256,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get globeScale => '地球大小';
 
   @override
+  String get globeQuality => '地球贴图清晰度';
+
+  @override
+  String get globeQuality2k => '2K (2048×1024)';
+
+  @override
+  String get globeQuality8k => '8K (8192×4096)';
+
+  @override
+  String get globeTime => '地球时间';
+
+  @override
+  String get globeTimeSystem => '跟随系统';
+
+  @override
+  String get globeTimeDay => '白天';
+
+  @override
+  String get globeTimeNight => '夜晚';
+
+  @override
   String get initialViewAuto => '自动（当前节点）';
 
   @override

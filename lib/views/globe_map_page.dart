@@ -70,6 +70,34 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
   /// render a placeholder instead.
   bool get _isTest => isFlutterTest;
 
+  /// The visible surface currently bound to the controller. `globeTime`
+  /// (system/day/night) and quality both feed into this, always resolved
+  /// against the live platform brightness.
+  String? _appliedSurface;
+
+  /// Resolves the visible surface for the current settings + brightness.
+  String _resolvedSurface() =>
+      _s.surfaceAssetFor(MediaQuery.platformBrightnessOf(context));
+
+  void _applySurface() {
+    if (_isTest) return;
+    final resolved = _resolvedSurface();
+    if (resolved == _appliedSurface) return;
+    _appliedSurface = resolved;
+    _globeController.loadSurface(AssetImage(resolved));
+    // The night texture stays bound for the day/night cycle; the visible
+    // one above is whichever of day/night the time mode picks.
+    _globeController.loadNightSurface(AssetImage(_s.nightSurfaceAsset));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Platform brightness can flip (system time switch) while the page
+    // is alive; re-resolve the visible surface on every dependency change.
+    _applySurface();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -77,10 +105,11 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
     _settings.addListener(_onSettingsChanged);
     _restartProbeTimer();
     _selection = ProxySelection(api: widget.api);
+    _appliedSurface = _s.daySurfaceAsset;
     _globeController = FlutterEarthGlobeController(
       // Match the upstream example's setup: day surface + night surface.
-      surface: const AssetImage('assets/globe/earth-day.jpg'),
-      nightSurface: const AssetImage('assets/globe/earth-night.jpg'),
+      surface: AssetImage(_s.daySurfaceAsset),
+      nightSurface: AssetImage(_s.nightSurfaceAsset),
       isRotating: _s.autoRotate,
       rotationSpeed: _s.rotationSpeed,
       isZoomEnabled: true,
@@ -176,6 +205,9 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
         _globeController.stopRotation();
       }
       _globeController.setRotationSpeed(s.rotationSpeed);
+      // Swap textures in place when the user switches 2K <-> 8K or
+      // changes the globe time mode.
+      _applySurface();
     }
     _syncPoints();
     if (mounted) setState(() {});

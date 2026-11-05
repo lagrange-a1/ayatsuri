@@ -37,6 +37,12 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
   probeSort:
       $enumDecodeNullable(_$ProbeSortEnumMap, json['probeSort']) ??
       ProbeSort.delay,
+  globeQuality:
+      $enumDecodeNullable(_$GlobeTextureQualityEnumMap, json['globeQuality']) ??
+      GlobeTextureQuality.k8,
+  globeTime:
+      $enumDecodeNullable(_$GlobeTimeEnumMap, json['globeTime']) ??
+      GlobeTime.system,
   probeIntervalSec: (json['probeInterval'] as num?)?.toInt() ?? 30,
   compactNodeList: json['compact'] as bool? ?? false,
   locale:
@@ -66,6 +72,8 @@ Map<String, dynamic> _$AppSettingsToJson(_AppSettings instance) =>
       'maxDelayMs': instance.maxDelayMs,
       'hideBlocked': instance.hideBlocked,
       'probeSort': _$ProbeSortEnumMap[instance.probeSort]!,
+      'globeQuality': _$GlobeTextureQualityEnumMap[instance.globeQuality]!,
+      'globeTime': _$GlobeTimeEnumMap[instance.globeTime]!,
       'probeInterval': instance.probeIntervalSec,
       'compact': instance.compactNodeList,
       'locale': _$AppLocaleEnumMap[instance.locale]!,
@@ -97,6 +105,17 @@ const _$InitialViewEnumMap = {
 };
 
 const _$ProbeSortEnumMap = {ProbeSort.delay: 'delay', ProbeSort.name: 'name'};
+
+const _$GlobeTextureQualityEnumMap = {
+  GlobeTextureQuality.k2: 'k2',
+  GlobeTextureQuality.k8: 'k8',
+};
+
+const _$GlobeTimeEnumMap = {
+  GlobeTime.system: 'system',
+  GlobeTime.day: 'day',
+  GlobeTime.night: 'night',
+};
 
 const _$AppLocaleEnumMap = {
   AppLocale.system: 'system',

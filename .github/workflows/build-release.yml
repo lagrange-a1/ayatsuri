@@ -27,6 +27,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.38.7'
 
       - name: Flutter doctor
         run: flutter doctor -v
@@ -41,10 +42,11 @@ jobs:
 
       - name: Build APK (release, debug-signed)
         # Split-per-ABI by default (smaller per-arch APKs, standard for
-        # GitHub releases). workflow_dispatch inputs are empty on tag
-        # pushes, so fall back to 'true' unless explicitly disabled.
+        # GitHub releases). On tag pushes `inputs` is empty, so default
+        # to split; on workflow_dispatch honor the boolean input ('false'
+        # is falsy, so `inputs.split_per_abi || 'true'` would ignore it).
         env:
-          SPLIT_PER_ABI: ${{ inputs.split_per_abi || 'true' }}
+          SPLIT_PER_ABI: ${{ github.event_name == 'workflow_dispatch' && inputs.split_per_abi == false && 'false' || 'true' }}
         run: |
           if [ "$SPLIT_PER_ABI" = "true" ]; then
             flutter build apk --release --split-per-abi

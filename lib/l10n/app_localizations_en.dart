@@ -256,6 +256,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get globeScale => 'Globe size';
 
   @override
+  String get globeQuality => 'Globe texture quality';
+
+  @override
+  String get globeQuality2k => '2K (2048×1024)';
+
+  @override
+  String get globeQuality8k => '8K (8192×4096)';
+
+  @override
+  String get globeTime => 'Globe time';
+
+  @override
+  String get globeTimeSystem => 'Follow system';
+
+  @override
+  String get globeTimeDay => 'Day';
+
+  @override
+  String get globeTimeNight => 'Night';
+
+  @override
   String get initialViewAuto => 'Auto (current proxy)';
 
   @override

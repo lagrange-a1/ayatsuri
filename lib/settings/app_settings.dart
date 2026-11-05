@@ -48,6 +48,40 @@ enum InitialView {
 
 enum ProbeSort { delay, name }
 
+/// Which earth surface the globe shows: follow the system brightness,
+/// force the day texture, or force the night texture.
+enum GlobeTime {
+  system,
+  day,
+  night;
+
+  /// Resolves to the visible surface against the platform brightness.
+  /// Returns true for the night surface.
+  bool isNightFor(Brightness brightness) => switch (this) {
+    GlobeTime.system => brightness == Brightness.dark,
+    GlobeTime.day => false,
+    GlobeTime.night => true,
+  };
+}
+
+/// Bundled earth-texture resolution; 8K is the default (8192×4096),
+/// 2K is kept for low-end devices / small APK size (2048×1024).
+/// Both are equirectangular day/night pairs from Solar System Scope.
+enum GlobeTextureQuality {
+  k2,
+  k8;
+
+  String get dayAsset => switch (this) {
+    GlobeTextureQuality.k2 => 'assets/globe/earth-day-2k.jpg',
+    GlobeTextureQuality.k8 => 'assets/globe/earth-day-8k.jpg',
+  };
+
+  String get nightAsset => switch (this) {
+    GlobeTextureQuality.k2 => 'assets/globe/earth-night-2k.jpg',
+    GlobeTextureQuality.k8 => 'assets/globe/earth-night-8k.jpg',
+  };
+}
+
 /// UI language: follow system, Simplified Chinese, or English.
 enum AppLocale {
   system,
@@ -95,6 +129,7 @@ Map<String, dynamic> _normalize(Map<String, dynamic> j) {
   enumKey('initialView', InitialView.values, InitialView.auto);
   enumKey('probeSort', ProbeSort.values, ProbeSort.delay);
   enumKey('locale', AppLocale.values, AppLocale.system);
+  enumKey('globeQuality', GlobeTextureQuality.values, GlobeTextureQuality.k8);
 
   m['textScale'] = _clampNum(m['textScale'], 1.0, 0.85, 1.3);
   m['bgOpacity'] = _clampNum(m['bgOpacity'], 0.65, 0.0, 1.0);
@@ -159,6 +194,10 @@ abstract class AppSettings with _$AppSettings {
     @Default(0) int maxDelayMs,
     @Default(false) bool hideBlocked,
     @Default(ProbeSort.delay) ProbeSort probeSort,
+    @JsonKey(name: 'globeQuality')
+    @Default(GlobeTextureQuality.k8)
+    GlobeTextureQuality globeQuality,
+    @JsonKey(name: 'globeTime') @Default(GlobeTime.system) GlobeTime globeTime,
 
     /// Periodic full-probe interval in seconds; -1 disables the timer.
     @JsonKey(name: 'probeInterval') @Default(30) int probeIntervalSec,
@@ -176,6 +215,12 @@ abstract class AppSettings with _$AppSettings {
   bool get hasBackground => backgroundPath != null || backgroundBase64 != null;
 
   @JsonKey(includeToJson: false, includeFromJson: false)
+  String get daySurfaceAsset => globeQuality.dayAsset;
+
+  @JsonKey(includeToJson: false, includeFromJson: false)
+  String get nightSurfaceAsset => globeQuality.nightAsset;
+
+  @JsonKey(includeToJson: false, includeFromJson: false)
   double get latLngLat => switch (initialView) {
     InitialView.global => 0,
     InitialView.custom => customLat,
@@ -188,6 +233,13 @@ abstract class AppSettings with _$AppSettings {
     InitialView.custom => customLng,
     InitialView.auto || InitialView.asia => 100,
   };
+}
+
+/// Visible earth surface for a [brightness]: `globeTime.system` follows the
+/// platform brightness, `day`/`night` force a texture.
+extension AppSettingsSurface on AppSettings {
+  String surfaceAssetFor(Brightness brightness) =>
+      globeTime.isNightFor(brightness) ? nightSurfaceAsset : daySurfaceAsset;
 }
 
 class AppSettingsController extends ChangeNotifier {

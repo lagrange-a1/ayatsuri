@@ -214,6 +214,50 @@ class SettingsPage extends StatelessWidget {
               ),
               const Divider(height: 32),
               _header(context, l10n.globeHeader),
+              Text(
+                l10n.globeQuality,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              SegmentedButton<GlobeTextureQuality>(
+                segments: [
+                  ButtonSegment(
+                    value: GlobeTextureQuality.k2,
+                    label: Text(l10n.globeQuality2k),
+                  ),
+                  ButtonSegment(
+                    value: GlobeTextureQuality.k8,
+                    label: Text(l10n.globeQuality8k),
+                  ),
+                ],
+                selected: {s.globeQuality},
+                onSelectionChanged: (v) =>
+                    set(s.copyWith(globeQuality: v.first)),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                l10n.globeTime,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              SegmentedButton<GlobeTime>(
+                segments: [
+                  ButtonSegment(
+                    value: GlobeTime.system,
+                    label: Text(l10n.globeTimeSystem),
+                  ),
+                  ButtonSegment(
+                    value: GlobeTime.day,
+                    label: Text(l10n.globeTimeDay),
+                  ),
+                  ButtonSegment(
+                    value: GlobeTime.night,
+                    label: Text(l10n.globeTimeNight),
+                  ),
+                ],
+                selected: {s.globeTime},
+                onSelectionChanged: (v) => set(s.copyWith(globeTime: v.first)),
+              ),
               SwitchListTile(
                 title: Text(l10n.autoRotate),
                 value: s.autoRotate,
@@ -444,7 +488,8 @@ class _SettingsTextFieldState extends State<_SettingsTextField> {
 
   @override
   void dispose() {
-    _commitIfDirty();
+    // No commit here: focus-loss already committed; committing from
+    // dispose() would notifyListeners() while the page is unmounting.
     _focusNode.dispose();
     _controller.dispose();
     super.dispose();

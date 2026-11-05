@@ -560,6 +560,48 @@ abstract class AppLocalizations {
   /// **'Globe size'**
   String get globeScale;
 
+  /// No description provided for @globeQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Globe texture quality'**
+  String get globeQuality;
+
+  /// No description provided for @globeQuality2k.
+  ///
+  /// In en, this message translates to:
+  /// **'2K (2048×1024)'**
+  String get globeQuality2k;
+
+  /// No description provided for @globeQuality8k.
+  ///
+  /// In en, this message translates to:
+  /// **'8K (8192×4096)'**
+  String get globeQuality8k;
+
+  /// No description provided for @globeTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Globe time'**
+  String get globeTime;
+
+  /// No description provided for @globeTimeSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow system'**
+  String get globeTimeSystem;
+
+  /// No description provided for @globeTimeDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Day'**
+  String get globeTimeDay;
+
+  /// No description provided for @globeTimeNight.
+  ///
+  /// In en, this message translates to:
+  /// **'Night'**
+  String get globeTimeNight;
+
   /// No description provided for @initialViewAuto.
   ///
   /// In en, this message translates to:
