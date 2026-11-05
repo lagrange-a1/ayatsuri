@@ -191,4 +191,40 @@ void main() async {
     expect(delayColor(150), isNot(delayColor(999)));
     expect(delayColor(0), isNot(delayColor(50)));
   });
+
+  GroupItem grp(String name, String type, String? now) =>
+      GroupItem(name: name, type: type, all: const [], now: now);
+
+  test('kernelCountryAlpha2 follows nested group chains', () {
+    // Real-world shape: PROXY -> AUTO-FAST -> UAE node, with automatic
+    // pools listed first — their `now` must not win.
+    final groups = [
+      grp('US-POOL', 'URLTest', '🇺🇸 美国 | USA 11'),
+      grp('AI-POOL', 'URLTest', '🇮🇹 意大利 | ITA 3'),
+      grp('GLOBAL', 'Selector', 'DIRECT'),
+      grp('PROXY', 'Selector', 'AUTO-FAST'),
+      grp('AUTO-FAST', 'URLTest', '🇦🇪 阿联酋 | ARE'),
+    ];
+    expect(kernelCountryAlpha2(groups), 'AE');
+  });
+
+  test('kernelCountryAlpha2 falls back to automatic pools', () {
+    final groups = [
+      grp('GLOBAL', 'Selector', 'DIRECT'),
+      grp('US-POOL', 'URLTest', '🇺🇸 美国 | USA 11'),
+    ];
+    expect(kernelCountryAlpha2(groups), 'US');
+  });
+
+  test('kernelCountryAlpha2 handles cycles and unresolvable chains', () {
+    expect(
+      kernelCountryAlpha2([
+        grp('A', 'Selector', 'B'),
+        grp('B', 'Selector', 'A'),
+      ]),
+      isNull,
+    );
+    expect(kernelCountryAlpha2([grp('A', 'Selector', 'DIRECT')]), isNull);
+    expect(kernelCountryAlpha2([]), isNull);
+  });
 }

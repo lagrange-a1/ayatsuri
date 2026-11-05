@@ -233,6 +233,35 @@ class ProxySelection {
   }
 }
 
+/// Resolve which country the kernel is effectively using, following `now`
+/// links through nested groups (e.g. `PROXY -> AUTO-FAST -> 🇦🇪 node`).
+///
+/// A group's `now` may name another group rather than a proxy, and policy
+/// groups (Selector) in the list order may trail automatic URLTest pools
+/// whose `now` is merely their current fastest node — so this prefers
+/// Selector-typed chains and only falls back to automatic pools when no
+/// Selector chain resolves to a country. Cycles resolve to null.
+String? kernelCountryAlpha2(List<GroupItem> groups) {
+  final byName = <String, GroupItem>{for (final g in groups) g.name: g};
+  for (final selectorPass in [true, false]) {
+    for (final group in groups) {
+      if ((group.type == 'Selector') != selectorPass) continue;
+      var name = group.now;
+      final seen = <String>{};
+      while (name != null && seen.add(name)) {
+        final next = byName[name];
+        if (next == null) {
+          final alpha2 = nameToFrontAlpha2(name);
+          if (alpha2 != null) return alpha2;
+          break;
+        }
+        name = next.now;
+      }
+    }
+  }
+  return null;
+}
+
 /// Used by `testProxyDelay` as default probe URL.
 const kDefaultProbeUrl = 'https://www.gstatic.com/generate_204';
 

@@ -197,16 +197,9 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
   /// Recompute the kernel's currently running node country from the
   /// freshly loaded proxy groups.
   void _refreshKernelCountry() {
-    for (final group in _selection.selectors) {
-      final now = group.now;
-      if (now == null) continue;
-      final alpha2 = nameToFrontAlpha2(now);
-      if (alpha2 != null) {
-        if (_kernelAlpha2 != alpha2) {
-          setState(() => _kernelAlpha2 = alpha2);
-        }
-        return;
-      }
+    final alpha2 = kernelCountryAlpha2(_selection.selectors);
+    if (alpha2 != null && _kernelAlpha2 != alpha2) {
+      setState(() => _kernelAlpha2 = alpha2);
     }
   }
 
@@ -261,13 +254,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
   /// once, select it, and focus the globe on it.
   void _maybeResolveAutoView() {
     if (_s.initialView != InitialView.auto || _selectedAlpha2 != null) return;
-    String? alpha2;
-    for (final group in _selection.selectors) {
-      final now = group.now;
-      if (now == null) continue;
-      alpha2 = nameToFrontAlpha2(now);
-      if (alpha2 != null) break;
-    }
+    final alpha2 = kernelCountryAlpha2(_selection.selectors);
     if (alpha2 == null) return;
     _selectedAlpha2 = alpha2;
     final centroid = _shapes?.centroidFor(alpha2);
