@@ -127,9 +127,23 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
     }
   }
 
+  /// Resolve the initial-view target as (lat, lng). For `auto` this is the
+  /// currently running node's country centroid once known; falling back to
+  /// `latLngLat/Lng` for `auto` would land on Asia (28, 100), so `auto`
+  /// must resolve through the kernel country first.
+  (double, double) _initialTarget() {
+    if (_s.initialView == InitialView.auto) {
+      final alpha2 = _kernelAlpha2 ?? _selectedAlpha2;
+      final centroid = alpha2 != null ? _shapes?.centroidFor(alpha2) : null;
+      if (centroid != null) return centroid;
+    }
+    return (_s.latLngLat, _s.latLngLng);
+  }
+
   void _focusInitial() {
+    final target = _initialTarget();
     _globeController.globeKey.currentState?.focusOnCoordinates(
-      GlobeCoordinates(_s.latLngLat, _s.latLngLng),
+      GlobeCoordinates(target.$1, target.$2),
       animate: false,
       duration: null,
     );
