@@ -4,7 +4,7 @@
          in the main manifest or release builds ship without it. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="ayatsuri"
+        android:label="Ayatsuri"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
