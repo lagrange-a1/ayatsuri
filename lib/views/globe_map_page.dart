@@ -2,7 +2,7 @@
  * 3D globe page: a real rotating Earth (native `flutter_earth_globe`) where
  * tapping a country opens a popup panel with the matching proxy nodes.
  *
- * Taps arrive as (latitude, longitude); `geo_hit_test` resolves them
+ * Taps arrive as (latitude, longitude); `country_shapes` resolves them
  * against the bundled Natural Earth 110m GeoJSON (`assets/globe/`) to a
  * country alpha-2, and available countries get tappable marker points on
  * the globe (the fallback for small countries that are hard to tap).
