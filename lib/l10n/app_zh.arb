@@ -138,5 +138,15 @@
   "languageEn": "English",
   "globeScale": "地球大小",
   "initialViewAuto": "自动（当前节点）",
-  "timeout": "超时"
+  "timeout": "超时",
+  "probeInterval": "定期测速（全部节点）",
+  "probeIntervalOff": "关闭",
+  "probeIntervalSec": "每 {seconds} 秒",
+  "@probeIntervalSec": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  }
 }

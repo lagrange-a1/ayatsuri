@@ -132,16 +132,20 @@ class _MihomoInfoState extends State<MihomoInfo> {
   String? _error;
 
   // ── Collected data ──────────────────────────────────────────────────
-  bool get _hasAnyData =>
-      _version != null ||
-      _configs != null ||
-      _proxies != null ||
-      _groups != null ||
-      _rules != null ||
-      _connections != null ||
-      _traffic != null ||
-      _memory != null ||
-      _logs != null;
+  /// The nine info sections, in display order.
+  List<Map<String, dynamic>?> get _sections => [
+    _version,
+    _configs,
+    _proxies,
+    _groups,
+    _rules,
+    _connections,
+    _traffic,
+    _memory,
+    _logs,
+  ];
+
+  bool get _hasAnyData => _sections.any((d) => d != null);
 
   Map<String, dynamic>? _version;
   Map<String, dynamic>? _configs;
@@ -173,48 +177,27 @@ class _MihomoInfoState extends State<MihomoInfo> {
     // whole page. Transient connection failures are retried every 0.5s
     // in the background and degrade to an empty section; only
     // non-transient failures surface the error page.
-    final fetchers = <Future<void> Function()>[
-      () async {
-        final r = await retryTransient(() => _api.getVersion());
-        if (r != null) _version = r.data as Map<String, dynamic>;
-      },
-      () async {
-        final r = await retryTransient(() => _api.getConfigs());
-        if (r != null) _configs = r.data as Map<String, dynamic>;
-      },
-      () async {
-        final r = await retryTransient(() => _api.getProxies());
-        if (r != null) _proxies = r.data as Map<String, dynamic>;
-      },
-      () async {
-        final r = await retryTransient(() => _api.getGroups());
-        if (r != null) _groups = r.data as Map<String, dynamic>;
-      },
-      () async {
-        final r = await retryTransient(() => _api.getRules());
-        if (r != null) _rules = r.data as Map<String, dynamic>;
-      },
-      () async {
-        final r = await retryTransient(() => _api.getConnections());
-        if (r != null) _connections = r.data as Map<String, dynamic>;
-      },
-      () async {
-        final r = await retryTransient(() => _api.getTraffic());
-        if (r != null) _traffic = r.data as Map<String, dynamic>;
-      },
-      () async {
-        final r = await retryTransient(() => _api.getMemory());
-        if (r != null) _memory = r.data as Map<String, dynamic>;
-      },
-      () async {
-        final r = await retryTransient(() => _api.getLogs());
-        if (r != null) _logs = r.data as Map<String, dynamic>;
-      },
-    ];
+    // (fetch, assign) pairs — one table instead of nine near-identical
+    // closures.
+    final fetchers =
+        <(Future<Response> Function(), void Function(Map<String, dynamic>))>[
+          (_api.getVersion, (d) => _version = d),
+          (_api.getConfigs, (d) => _configs = d),
+          (_api.getProxies, (d) => _proxies = d),
+          (_api.getGroups, (d) => _groups = d),
+          (_api.getRules, (d) => _rules = d),
+          (_api.getConnections, (d) => _connections = d),
+          (_api.getTraffic, (d) => _traffic = d),
+          (_api.getMemory, (d) => _memory = d),
+          (_api.getLogs, (d) => _logs = d),
+        ];
 
     var pending = fetchers.length;
-    for (final fetch in fetchers) {
-      fetch()
+    for (final (fetch, assign) in fetchers) {
+      retryTransient(fetch)
+          .then((r) {
+            if (r != null) assign(r.data as Map<String, dynamic>);
+          })
           .catchError((Object e) {
             // Non-transient failure: remember the first one; the error
             // page only shows when nothing loaded at all.
@@ -358,15 +341,18 @@ class _MihomoInfoState extends State<MihomoInfo> {
           : ListView(
               padding: const EdgeInsets.all(12),
               children: [
-                _section(l10n.sectionVersion, _version),
-                _section(l10n.sectionConfigs, _configs),
-                _section(l10n.sectionProxies, _proxies),
-                _section(l10n.sectionGroups, _groups),
-                _section(l10n.sectionRules, _rules),
-                _section(l10n.sectionConnections, _connections),
-                _section(l10n.sectionTraffic, _traffic),
-                _section(l10n.sectionMemory, _memory),
-                _section(l10n.sectionLogs, _logs),
+                for (final (title, data) in <(String, Map<String, dynamic>?)>[
+                  (l10n.sectionVersion, _version),
+                  (l10n.sectionConfigs, _configs),
+                  (l10n.sectionProxies, _proxies),
+                  (l10n.sectionGroups, _groups),
+                  (l10n.sectionRules, _rules),
+                  (l10n.sectionConnections, _connections),
+                  (l10n.sectionTraffic, _traffic),
+                  (l10n.sectionMemory, _memory),
+                  (l10n.sectionLogs, _logs),
+                ])
+                  _section(title, data),
               ],
             ),
     );

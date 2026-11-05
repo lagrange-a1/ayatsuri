@@ -144,7 +144,33 @@ class ProxySelection {
   Future<void> select(String groupName, String proxyName) =>
       _api.selectProxy(groupName, proxyName: proxyName);
 
-  /// Probe the delay of several proxies in parallel and persist the result.
+  /// Probe the delay of one proxy and persist the result. Returns whether a
+  /// delay was recorded.
+  Future<bool> _probeOne(
+    String name, {
+    required String url,
+    required int timeout,
+  }) async {
+    try {
+      final response = await _api.testProxyDelay(
+        name,
+        url: url,
+        timeout: timeout,
+      );
+      final data = (response.data as Map<String, dynamic>);
+      final delay = (data['delay'] as num?)?.toInt();
+      if (delay == null) return false;
+      await _updateDelay(name, delay);
+      return true;
+    } on DioException {
+      // Probe failure (node unreachable within the probe timeout):
+      // record the timeout state instead of leaving the row grey.
+      await _updateDelay(name, kDelayTimeout);
+      return true;
+    }
+  }
+
+  /// Probe the delay of several proxies and persist the result.
   ///
   /// The `GET /proxies/:name/delay` endpoint reports the probe result in `delay`
   /// (ms, higher is worse, `0` means blocked/unreachable).
@@ -158,21 +184,7 @@ class ProxySelection {
   }) async {
     final out = <ProxyCandidate>[];
     for (final candidate in candidates) {
-      try {
-        final response = await _api.testProxyDelay(
-          candidate.proxy.name,
-          url: url,
-          timeout: timeout,
-        );
-        final data = (response.data as Map<String, dynamic>);
-        final delay = (data['delay'] as num?)?.toInt();
-        if (delay == null) continue;
-        await _updateDelay(candidate.proxy.name, delay);
-        out.add(candidate);
-      } on DioException {
-        // Probe failure (node unreachable within the probe timeout):
-        // record the timeout state instead of leaving the row grey.
-        await _updateDelay(candidate.proxy.name, kDelayTimeout);
+      if (await _probeOne(candidate.proxy.name, url: url, timeout: timeout)) {
         out.add(candidate);
       }
     }
@@ -185,20 +197,7 @@ class ProxySelection {
     String url = kDefaultProbeUrl,
     int timeout = kProbeTimeoutMs,
   }) async {
-    try {
-      final response = await _api.testProxyDelay(
-        name,
-        url: url,
-        timeout: timeout,
-      );
-      final data = (response.data as Map<String, dynamic>);
-      final delay = (data['delay'] as num?)?.toInt();
-      if (delay == null) return;
-      await _updateDelay(name, delay);
-    } on DioException {
-      // No data came back within the probe timeout: show TIMEOUT.
-      await _updateDelay(name, kDelayTimeout);
-    }
+    await _probeOne(name, url: url, timeout: timeout);
   }
 
   Future<void> _updateDelay(String name, int delay) async {

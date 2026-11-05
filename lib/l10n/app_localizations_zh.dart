@@ -245,4 +245,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get timeout => '超时';
+
+  @override
+  String get probeInterval => '定期测速（全部节点）';
+
+  @override
+  String get probeIntervalOff => '关闭';
+
+  @override
+  String probeIntervalSec(int seconds) {
+    return '每 $seconds 秒';
+  }
 }

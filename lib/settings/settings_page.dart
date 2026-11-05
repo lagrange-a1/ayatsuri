@@ -295,6 +295,25 @@ class SettingsPage extends StatelessWidget {
                 value: s.hideBlocked,
                 onChanged: (v) => set(s.copyWith(hideBlocked: v)),
               ),
+              SwitchListTile(
+                title: Text(l10n.probeInterval),
+                subtitle: s.probeIntervalSec < 0
+                    ? Text(l10n.probeIntervalOff)
+                    : Text(l10n.probeIntervalSec(s.probeIntervalSec)),
+                value: s.probeIntervalSec >= 0,
+                onChanged: (v) =>
+                    set(s.copyWith(probeIntervalSec: v ? 30 : -1)),
+              ),
+              if (s.probeIntervalSec >= 0)
+                _sliderTile(
+                  context,
+                  l10n.probeInterval,
+                  s.probeIntervalSec.toDouble(),
+                  5,
+                  300,
+                  (v) => set(s.copyWith(probeIntervalSec: v.round())),
+                  l10n.probeIntervalSec(s.probeIntervalSec),
+                ),
               SegmentedButton<ProbeSort>(
                 segments: [
                   ButtonSegment(

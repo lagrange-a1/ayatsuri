@@ -86,17 +86,27 @@ class MihomoAPI {
   Future<Response> clearProxySelection(String name) =>
       _dio.delete('/proxies/$name');
 
+  /// `GET /<prefix>/<name>/delay` — probe the delay of a proxy or group.
+  Future<Response> _delay(
+    String prefix,
+    String name, {
+    required String url,
+    required int timeout,
+    String? expected,
+  }) {
+    final params = <String, dynamic>{'url': url, 'timeout': timeout};
+    if (expected != null) params['expected'] = expected;
+    return _dio.get('$prefix/$name/delay', queryParameters: params);
+  }
+
   /// `GET /proxies/<name>/delay`
   Future<Response> testProxyDelay(
     String name, {
     required String url,
     int timeout = 5000,
     String? expected,
-  }) {
-    final params = <String, dynamic>{'url': url, 'timeout': timeout};
-    if (expected != null) params['expected'] = expected;
-    return _dio.get('/proxies/$name/delay', queryParameters: params);
-  }
+  }) =>
+      _delay('/proxies', name, url: url, timeout: timeout, expected: expected);
 
   // ── Policy Groups ────────────────────────────────────────────────────
 
@@ -112,11 +122,7 @@ class MihomoAPI {
     required String url,
     int timeout = 5000,
     String? expected,
-  }) {
-    final params = <String, dynamic>{'url': url, 'timeout': timeout};
-    if (expected != null) params['expected'] = expected;
-    return _dio.get('/group/$name/delay', queryParameters: params);
-  }
+  }) => _delay('/group', name, url: url, timeout: timeout, expected: expected);
 
   // ── Running Configuration ────────────────────────────────────────────
 

@@ -5,6 +5,13 @@
  * schema version; unreadable/corrupt data falls back to defaults so startup
  * is never blocked.
  *
+ * The data class is generated with freezed (copyWith / equality) and
+ * json_serializable (toJson / fromJson) — see app_settings.freezed.dart /
+ * app_settings.g.dart. The hand-written part is only the fromJson
+ * pre-processing ([_normalize]), which preserves the historical behaviour:
+ * clamped numbers, enum-name fallbacks, renamed keys ('seed', 'bg',
+ * 'rotSpeed', ...), and the old rotationSpeed scale migration.
+ *
  * The custom background image is persisted as a real file under the
  * app-private documents directory on file-system platforms (Android:
  * `/data/data/<package>/files/`), with only its path stored in the JSON;
@@ -17,12 +24,19 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'background_file.dart';
 
+part 'app_settings.freezed.dart';
+part 'app_settings.g.dart';
+
 const _prefsKey = 'ayatsuri_settings_v1';
-const _schemaVersion = 1;
+// The stored document used to carry a `v` schema-version key. It was never
+// read back, and json_serializable does not write getters, so `v` is no
+// longer emitted; old stored documents with `v` still parse (unknown keys
+// are ignored by the generated fromJson).
 
 enum InitialView {
   /// Follow the currently selected proxy's country (resolved at runtime).
@@ -48,186 +62,124 @@ enum AppLocale {
   };
 }
 
-class AppSettings {
-  const AppSettings({
-    this.themeMode = ThemeMode.system,
-    this.seedColor = const Color(0xFF6750A4),
-    this.pureBlack = false,
-    this.schemeVariant = DynamicSchemeVariant.content,
-    this.textScale = 1.0,
-    this.backgroundBase64,
-    this.backgroundPath,
-    this.backgroundOpacity = 0.65,
-    this.autoRotate = false,
-    this.rotationSpeed = 0.01,
-    this.markerScale = 1.0,
-    this.globeScale = 1.0,
-    this.initialView = InitialView.auto,
-    this.customLat = 28,
-    this.customLng = 100,
-    this.maxDelayMs = 0,
-    this.hideBlocked = false,
-    this.probeSort = ProbeSort.delay,
-    this.compactNodeList = false,
-    this.locale = AppLocale.system,
-  });
+// ── json_serializable converters ────────────────────────────────────────
 
-  final ThemeMode themeMode;
-  final Color seedColor;
-  final bool pureBlack;
-  final DynamicSchemeVariant schemeVariant;
-  final double textScale;
-  final String? backgroundBase64;
+/// Color <-> ARGB32 int. Non-numeric values fall back to the default seed.
+Color _colorFromJson(Object? v) =>
+    v is num ? Color(v.toInt()) : const Color(0xFF6750A4);
 
-  /// File-system path of the persisted background image (native only).
-  final String? backgroundPath;
-  final double backgroundOpacity;
-  final bool autoRotate;
-  final double rotationSpeed;
-  final double markerScale;
-  final double globeScale;
-  final InitialView initialView;
-  final double customLat;
-  final double customLng;
-  final int maxDelayMs;
-  final bool hideBlocked;
-  final ProbeSort probeSort;
-  final bool compactNodeList;
-  final AppLocale locale;
+int _colorToJson(Color c) => c.toARGB32();
+
+// ── fromJson pre-processing ─────────────────────────────────────────────
+
+double _num(Object? v, double fallback) => v is num ? v.toDouble() : fallback;
+
+double _clampNum(Object? v, double fallback, double lo, double hi) =>
+    _num(v, fallback).clamp(lo, hi);
+
+bool _isKnownName<T extends Enum>(List<T> values, Object? name) =>
+    values.any((e) => e.name == name);
+
+/// Normalizes a raw stored document so the generated fromJson can stay dumb:
+/// enum names fall back to defaults instead of throwing, out-of-range numbers
+/// are clamped, and the old 0.05-1.0 rotationSpeed slider scale (values above
+/// the new range, e.g. 0.2 -> 0.01, ~4 deg/s) is migrated.
+Map<String, dynamic> _normalize(Map<String, dynamic> j) {
+  final m = Map<String, dynamic>.of(j);
+  void enumKey<T extends Enum>(String key, List<T> values, T fallback) {
+    if (!_isKnownName(values, m[key])) m[key] = fallback.name;
+  }
+
+  enumKey('themeMode', ThemeMode.values, ThemeMode.system);
+  enumKey('variant', DynamicSchemeVariant.values, DynamicSchemeVariant.content);
+  enumKey('initialView', InitialView.values, InitialView.asia);
+  enumKey('probeSort', ProbeSort.values, ProbeSort.delay);
+  enumKey('locale', AppLocale.values, AppLocale.system);
+
+  m['textScale'] = _clampNum(m['textScale'], 1.0, 0.85, 1.3);
+  m['bgOpacity'] = _clampNum(m['bgOpacity'], 0.65, 0.0, 1.0);
+  m['markerScale'] = _clampNum(m['markerScale'], 1.0, 0.5, 2.0);
+  m['globeScale'] = _clampNum(m['globeScale'], 1.0, 0.7, 1.3);
+  m['customLat'] = _clampNum(m['customLat'], 28, -90.0, 90.0);
+  m['customLng'] = _clampNum(m['customLng'], 100, -180.0, 180.0);
+  final rawRot = _num(m['rotSpeed'], 0.01);
+  m['rotSpeed'] = (rawRot > 0.05 ? rawRot * 0.05 : rawRot).clamp(0.002, 0.05);
+  m['maxDelayMs'] = m['maxDelayMs'] is num
+      ? (m['maxDelayMs']! as num).toInt().clamp(0, 1000)
+      : 0;
+  // -1 (off) is preserved; otherwise clamp to the 5s..300s slider range.
+  final rawInterval = m['probeInterval'];
+  m['probeInterval'] = rawInterval == -1
+      ? -1
+      : (rawInterval is num ? rawInterval.toInt() : 30).clamp(5, 300);
+
+  // Tolerate corrupt non-bool/non-String payloads like the old `== true` /
+  // `is String` checks did.
+  for (final key in ['pureBlack', 'autoRotate', 'hideBlocked', 'compact']) {
+    m[key] = m[key] == true;
+  }
+  for (final key in ['bg', 'bgPath']) {
+    if (m[key] != null && m[key] is! String) m[key] = null;
+  }
+  return m;
+}
+
+@freezed
+abstract class AppSettings with _$AppSettings {
+  const factory AppSettings({
+    @Default(ThemeMode.system) ThemeMode themeMode,
+    @JsonKey(name: 'seed', fromJson: _colorFromJson, toJson: _colorToJson)
+    @Default(Color(0xFF6750A4))
+    Color seedColor,
+    @Default(false) bool pureBlack,
+    @JsonKey(name: 'variant')
+    @Default(DynamicSchemeVariant.content)
+    DynamicSchemeVariant schemeVariant,
+    @Default(1.0) double textScale,
+    @JsonKey(name: 'bg') String? backgroundBase64,
+
+    /// File-system path of the persisted background image (native only).
+    @JsonKey(name: 'bgPath') String? backgroundPath,
+    @JsonKey(name: 'bgOpacity') @Default(0.65) double backgroundOpacity,
+    @Default(false) bool autoRotate,
+    @JsonKey(name: 'rotSpeed') @Default(0.01) double rotationSpeed,
+    @Default(1.0) double markerScale,
+    @Default(1.0) double globeScale,
+    @Default(InitialView.auto) InitialView initialView,
+    @Default(28) double customLat,
+    @Default(100) double customLng,
+    @Default(0) int maxDelayMs,
+    @Default(false) bool hideBlocked,
+    @Default(ProbeSort.delay) ProbeSort probeSort,
+
+    /// Periodic full-probe interval in seconds; -1 disables the timer.
+    @JsonKey(name: 'probeInterval') @Default(30) int probeIntervalSec,
+    @JsonKey(name: 'compact') @Default(false) bool compactNodeList,
+    @Default(AppLocale.system) AppLocale locale,
+  }) = _AppSettings;
+
+  const AppSettings._();
+
+  factory AppSettings.fromJson(Map<String, dynamic> json) =>
+      _$AppSettingsFromJson(_normalize(json));
 
   /// Whether a custom background is configured (file or base64).
+  @JsonKey(includeToJson: false, includeFromJson: false)
   bool get hasBackground => backgroundPath != null || backgroundBase64 != null;
 
+  @JsonKey(includeToJson: false, includeFromJson: false)
   double get latLngLat => switch (initialView) {
     InitialView.global => 0,
     InitialView.custom => customLat,
     InitialView.auto || InitialView.asia => 28,
   };
+
+  @JsonKey(includeToJson: false, includeFromJson: false)
   double get latLngLng => switch (initialView) {
     InitialView.global => 0,
     InitialView.custom => customLng,
     InitialView.auto || InitialView.asia => 100,
   };
-
-  AppSettings copyWith({
-    ThemeMode? themeMode,
-    Color? seedColor,
-    bool? pureBlack,
-    DynamicSchemeVariant? schemeVariant,
-    double? textScale,
-    String? Function()? backgroundBase64,
-    String? Function()? backgroundPath,
-    double? backgroundOpacity,
-    bool? autoRotate,
-    double? rotationSpeed,
-    double? markerScale,
-    double? globeScale,
-    InitialView? initialView,
-    double? customLat,
-    double? customLng,
-    int? maxDelayMs,
-    bool? hideBlocked,
-    ProbeSort? probeSort,
-    bool? compactNodeList,
-    AppLocale? locale,
-  }) {
-    return AppSettings(
-      themeMode: themeMode ?? this.themeMode,
-      seedColor: seedColor ?? this.seedColor,
-      pureBlack: pureBlack ?? this.pureBlack,
-      schemeVariant: schemeVariant ?? this.schemeVariant,
-      textScale: textScale ?? this.textScale,
-      backgroundBase64: backgroundBase64 != null
-          ? backgroundBase64()
-          : this.backgroundBase64,
-      backgroundPath: backgroundPath != null
-          ? backgroundPath()
-          : this.backgroundPath,
-      backgroundOpacity: backgroundOpacity ?? this.backgroundOpacity,
-      autoRotate: autoRotate ?? this.autoRotate,
-      rotationSpeed: rotationSpeed ?? this.rotationSpeed,
-      markerScale: markerScale ?? this.markerScale,
-      globeScale: globeScale ?? this.globeScale,
-      initialView: initialView ?? this.initialView,
-      customLat: customLat ?? this.customLat,
-      customLng: customLng ?? this.customLng,
-      maxDelayMs: maxDelayMs ?? this.maxDelayMs,
-      hideBlocked: hideBlocked ?? this.hideBlocked,
-      probeSort: probeSort ?? this.probeSort,
-      compactNodeList: compactNodeList ?? this.compactNodeList,
-      locale: locale ?? this.locale,
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-    'v': _schemaVersion,
-    'themeMode': themeMode.name,
-    'seed': seedColor.toARGB32(),
-    'pureBlack': pureBlack,
-    'variant': schemeVariant.name,
-    'textScale': textScale,
-    'bg': backgroundBase64,
-    'bgPath': backgroundPath,
-    'bgOpacity': backgroundOpacity,
-    'autoRotate': autoRotate,
-    'rotSpeed': rotationSpeed,
-    'markerScale': markerScale,
-    'globeScale': globeScale,
-    'initialView': initialView.name,
-    'customLat': customLat,
-    'customLng': customLng,
-    'maxDelayMs': maxDelayMs,
-    'hideBlocked': hideBlocked,
-    'probeSort': probeSort.name,
-    'compact': compactNodeList,
-    'locale': locale.name,
-  };
-
-  factory AppSettings.fromJson(Map<String, dynamic> j) {
-    T enumOf<T extends Enum>(List<T> values, Object? name, T fallback) =>
-        values.firstWhere((e) => e.name == name, orElse: () => fallback);
-    double numOf(Object? v, double fb) => v is num ? v.toDouble() : fb;
-    return AppSettings(
-      themeMode: enumOf(ThemeMode.values, j['themeMode'], ThemeMode.system),
-      seedColor: j['seed'] is num
-          ? Color((j['seed']! as num).toInt())
-          : const Color(0xFF6750A4),
-      pureBlack: j['pureBlack'] == true,
-      schemeVariant: enumOf(
-        DynamicSchemeVariant.values,
-        j['variant'],
-        DynamicSchemeVariant.content,
-      ),
-      textScale: numOf(j['textScale'], 1.0).clamp(0.85, 1.3),
-      backgroundBase64: j['bg'] is String ? j['bg'] as String : null,
-      backgroundPath: j['bgPath'] is String ? j['bgPath'] as String : null,
-      backgroundOpacity: numOf(j['bgOpacity'], 0.65).clamp(0.0, 1.0),
-      autoRotate: j['autoRotate'] == true,
-      // Scale migration: the old 0.05-1.0 slider range was ~19-377 deg/s
-      // (the package ticks every frame); values above the new range are
-      // interpreted in the old scale (0.2 -> 0.01, i.e. ~4 deg/s).
-      rotationSpeed: () {
-        final raw = numOf(j['rotSpeed'], 0.01);
-        return (raw > 0.05 ? raw * 0.05 : raw).clamp(0.002, 0.05);
-      }(),
-      markerScale: numOf(j['markerScale'], 1.0).clamp(0.5, 2.0),
-      globeScale: numOf(j['globeScale'], 1.0).clamp(0.7, 1.3),
-      initialView: enumOf(
-        InitialView.values,
-        j['initialView'],
-        InitialView.asia,
-      ),
-      customLat: numOf(j['customLat'], 28).clamp(-90.0, 90.0),
-      customLng: numOf(j['customLng'], 100).clamp(-180.0, 180.0),
-      maxDelayMs: j['maxDelayMs'] is num
-          ? (j['maxDelayMs']! as num).toInt().clamp(0, 1000)
-          : 0,
-      hideBlocked: j['hideBlocked'] == true,
-      probeSort: enumOf(ProbeSort.values, j['probeSort'], ProbeSort.delay),
-      compactNodeList: j['compact'] == true,
-      locale: enumOf(AppLocale.values, j['locale'], AppLocale.system),
-    );
-  }
 }
 
 class AppSettingsController extends ChangeNotifier {
@@ -248,7 +200,7 @@ class AppSettingsController extends ChangeNotifier {
       _backgroundBytes = await readBackgroundFile();
       if (_backgroundBytes != null) return;
       // File vanished (cleared app data, etc.): drop the stale path.
-      _settings = _settings.copyWith(backgroundPath: () => null);
+      _settings = _settings.copyWith(backgroundPath: null);
     }
     final b64 = _settings.backgroundBase64;
     _backgroundBytes = b64 == null ? null : base64Decode(b64);
@@ -296,25 +248,22 @@ class AppSettingsController extends ChangeNotifier {
       if (kIsWeb) {
         await update(
           _settings.copyWith(
-            backgroundBase64: () => base64Encode(bytes),
-            backgroundPath: () => null,
+            backgroundBase64: base64Encode(bytes),
+            backgroundPath: null,
           ),
         );
       } else {
         final path = await writeBackgroundFile(bytes);
         if (path != null) {
           await update(
-            _settings.copyWith(
-              backgroundPath: () => path,
-              backgroundBase64: () => null,
-            ),
+            _settings.copyWith(backgroundPath: path, backgroundBase64: null),
           );
         } else {
           // File write failed: keep the image as base64 so it still shows.
           await update(
             _settings.copyWith(
-              backgroundBase64: () => base64Encode(bytes),
-              backgroundPath: () => null,
+              backgroundBase64: base64Encode(bytes),
+              backgroundPath: null,
             ),
           );
         }
@@ -329,10 +278,7 @@ class AppSettingsController extends ChangeNotifier {
     await deleteBackgroundFile();
     _backgroundBytes = null;
     await update(
-      _settings.copyWith(
-        backgroundBase64: () => null,
-        backgroundPath: () => null,
-      ),
+      _settings.copyWith(backgroundBase64: null, backgroundPath: null),
     );
   }
 }

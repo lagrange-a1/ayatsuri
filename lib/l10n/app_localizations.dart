@@ -541,6 +541,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'TIMEOUT'**
   String get timeout;
+
+  /// No description provided for @probeInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'Probe all nodes periodically'**
+  String get probeInterval;
+
+  /// No description provided for @probeIntervalOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get probeIntervalOff;
+
+  /// No description provided for @probeIntervalSec.
+  ///
+  /// In en, this message translates to:
+  /// **'Every {seconds} s'**
+  String probeIntervalSec(int seconds);
 }
 
 class _AppLocalizationsDelegate

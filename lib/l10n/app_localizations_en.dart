@@ -245,4 +245,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get timeout => 'TIMEOUT';
+
+  @override
+  String get probeInterval => 'Probe all nodes periodically';
+
+  @override
+  String get probeIntervalOff => 'Off';
+
+  @override
+  String probeIntervalSec(int seconds) {
+    return 'Every $seconds s';
+  }
 }

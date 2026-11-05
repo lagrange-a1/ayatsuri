@@ -51,6 +51,8 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
   String? _loadError;
   bool _globeDataError = false;
   Timer? _tapTimer;
+  Timer? _probeTimer;
+  bool _probingAll = false;
   int _tapToken = 0;
   late final AppSettingsController _settings;
 
@@ -65,6 +67,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
     super.initState();
     _settings = widget.settingsController ?? AppSettingsController();
     _settings.addListener(_onSettingsChanged);
+    _restartProbeTimer();
     _selection = ProxySelection(api: widget.api);
     _globeController = FlutterEarthGlobeController(
       // Match the upstream example's setup: day surface + night surface.
@@ -86,6 +89,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
   void dispose() {
     _settings.removeListener(_onSettingsChanged);
     _tapTimer?.cancel();
+    _probeTimer?.cancel();
     // The package's dispose() touches a late AnimationController that only
     // the globe widget initializes; in tests the globe is never built.
     if (!_isTest) _globeController.dispose();
@@ -139,6 +143,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
         if (mounted) _focusInitial();
       });
     }
+    _restartProbeTimer();
     if (!_isTest) {
       // NOTE: assigning `controller.isRotating` alone only flips a flag;
       // the animation keeps running. Use the start/stop methods so
@@ -162,7 +167,51 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
       _globeDataError = false;
     });
     _maybeResolveAutoView();
+    _restartProbeTimer();
     _syncPoints();
+  }
+
+  /// Effective periodic-probe interval: null when disabled (setting -1,
+  /// or more than 100 proxies — probing thousands of nodes every few
+  /// seconds is wasteful, so the timer stays off there).
+  Duration? _effectiveProbeInterval() {
+    final count = _selection.proxies.length;
+    if (count == 0 || count > 100) return null;
+    final seconds = _s.probeIntervalSec;
+    if (seconds < 0) return null;
+    return Duration(seconds: seconds < 5 ? 5 : seconds);
+  }
+
+  void _restartProbeTimer() {
+    _probeTimer?.cancel();
+    _probeTimer = null;
+    if (_isTest) return;
+    final interval = _effectiveProbeInterval();
+    if (interval == null) return;
+    _probeTimer = Timer.periodic(interval, (_) => _probeAllNodes());
+  }
+
+  /// Clash Verge Rev-style background probing: test every known proxy so
+  /// delays are fresh before the user even taps a country. The bottom
+  /// sheet still shows the last-known delay first, then updates live.
+  Future<void> _probeAllNodes() async {
+    if (_probingAll || !_selection.loaded) return;
+    final names = <String>{};
+    for (final group in _selection.selectors) {
+      names.addAll(group.all);
+    }
+    if (names.isEmpty) return;
+    _probingAll = true;
+    try {
+      final list = names.toList();
+      // Bounded concurrency so a full sweep does not hammer the core.
+      for (var i = 0; i < list.length; i += 16) {
+        if (!mounted) return;
+        await Future.wait(list.skip(i).take(16).map(_selection.probeByName));
+      }
+    } finally {
+      _probingAll = false;
+    }
   }
 
   /// Initial view "auto": resolve the currently-selected proxy's country
