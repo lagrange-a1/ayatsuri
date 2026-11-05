@@ -2,12 +2,6 @@ name: Build Release (Android)
 
 on:
   workflow_dispatch:
-    inputs:
-      split_per_abi:
-        description: 'Build split-per-abi APKs'
-        required: false
-        type: boolean
-        default: true
   push:
     tags:
       - 'v*'
@@ -42,17 +36,7 @@ jobs:
 
       - name: Build APK (release, debug-signed)
         # Split-per-ABI by default (smaller per-arch APKs, standard for
-        # GitHub releases). On tag pushes `inputs` is empty, so default
-        # to split; on workflow_dispatch honor the boolean input ('false'
-        # is falsy, so `inputs.split_per_abi || 'true'` would ignore it).
-        env:
-          SPLIT_PER_ABI: ${{ github.event_name == 'workflow_dispatch' && inputs.split_per_abi == false && 'false' || 'true' }}
-        run: |
-          if [ "$SPLIT_PER_ABI" = "true" ]; then
-            flutter build apk --release --split-per-abi
-          else
-            flutter build apk --release
-          fi
+        run: flutter build apk --release --split-per-abi
 
       - name: List outputs
         run: ls -lh build/app/outputs/flutter-apk/
