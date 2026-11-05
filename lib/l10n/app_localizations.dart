@@ -559,6 +559,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Every {seconds} s'**
   String probeIntervalSec(int seconds);
+
+  /// No description provided for @currentNode.
+  ///
+  /// In en, this message translates to:
+  /// **'current node'**
+  String get currentNode;
 }
 
 class _AppLocalizationsDelegate

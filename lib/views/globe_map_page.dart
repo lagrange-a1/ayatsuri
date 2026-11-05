@@ -352,7 +352,12 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
     return Scaffold(
       backgroundColor: const Color(0xFF05070D),
       appBar: AppBar(
-        title: Text(l10n.globeTitle),
+        title: Text(
+          selectedPattern == null
+              ? l10n.globeTitle
+              : '${l10n.globeTitle} (${l10n.currentNode}: '
+                    '${selectedPattern.flag} ${selectedPattern.name})',
+        ),
         actions: [
           IconButton(
             onPressed: _loadSelection,

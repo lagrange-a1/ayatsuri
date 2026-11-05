@@ -256,4 +256,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String probeIntervalSec(int seconds) {
     return 'Every $seconds s';
   }
+
+  @override
+  String get currentNode => 'current node';
 }

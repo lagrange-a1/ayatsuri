@@ -256,4 +256,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String probeIntervalSec(int seconds) {
     return '每 $seconds 秒';
   }
+
+  @override
+  String get currentNode => '当前节点';
 }
