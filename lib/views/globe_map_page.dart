@@ -50,6 +50,11 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
   CountryShapes? _shapes;
   final Set<String> _pointIds = {};
   String? _selectedAlpha2;
+
+  /// Country of the node the Mihomo kernel is actually running now
+  /// (first selector group's `now`), refreshed on every load. The title
+  /// shows this kernel state, not just the user's last tap.
+  String? _kernelAlpha2;
   String? _hoverAlpha2;
   String? _loadError;
   bool _globeDataError = false;
@@ -169,9 +174,26 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
       _loadError = _selection.error;
       _globeDataError = false;
     });
+    _refreshKernelCountry();
     _maybeResolveAutoView();
     _restartProbeTimer();
     _syncPoints();
+  }
+
+  /// Recompute the kernel's currently running node country from the
+  /// freshly loaded proxy groups.
+  void _refreshKernelCountry() {
+    for (final group in _selection.selectors) {
+      final now = group.now;
+      if (now == null) continue;
+      final alpha2 = nameToFrontAlpha2(now);
+      if (alpha2 != null) {
+        if (_kernelAlpha2 != alpha2) {
+          setState(() => _kernelAlpha2 = alpha2);
+        }
+        return;
+      }
+    }
   }
 
   /// Effective periodic-probe interval: null when disabled (setting -1,
@@ -352,14 +374,18 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
     final selectedPattern = _selectedAlpha2 == null
         ? null
         : kCountries[_selectedAlpha2];
+    // Title tracks the kernel's running node, falling back to the user's
+    // last tap when the kernel state is unknown.
+    final titleAlpha2 = _kernelAlpha2 ?? _selectedAlpha2;
+    final titlePattern = titleAlpha2 == null ? null : kCountries[titleAlpha2];
     return Scaffold(
       backgroundColor: const Color(0xFF05070D),
       appBar: AppBar(
         title: Text(
-          selectedPattern == null
+          titlePattern == null
               ? l10n.globeTitle
               : '${l10n.globeTitle} (${l10n.currentNode}: '
-                    '${selectedPattern.flag} ${selectedPattern.name})',
+                    '${titlePattern.flag} ${titlePattern.name})',
         ),
         actions: [
           IconButton(

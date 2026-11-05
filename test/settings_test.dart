@@ -107,7 +107,7 @@ void main() {
 
     await scrollTo('Background');
     await scrollTo('Globe');
-    await scrollTo('Node probe');
+    await scrollTo('Node ping');
     await tester.drag(find.byType(ListView), const Offset(0, 2000));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Dark').first);
