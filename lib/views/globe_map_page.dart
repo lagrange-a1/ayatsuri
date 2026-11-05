@@ -521,8 +521,11 @@ class _CountrySheetState extends State<_CountrySheet> {
         if (da == null && db == null) return 0;
         if (da == null) return 1;
         if (db == null) return -1;
-        if (da == 0 && db != 0) return 1;
-        if (db == 0 && da != 0) return -1;
+        // Timed-out and blocked nodes sort last, never as "fastest".
+        final daBad = da == 0 || da == kDelayTimeout;
+        final dbBad = db == 0 || db == kDelayTimeout;
+        if (daBad && !dbBad) return 1;
+        if (dbBad && !daBad) return -1;
         return da.compareTo(db);
       });
     } else {
