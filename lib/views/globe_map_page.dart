@@ -123,9 +123,22 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
     );
   }
 
+  (InitialView, double, double)? _appliedInitialView;
+
   void _onSettingsChanged() {
     if (!mounted) return;
     final s = _s;
+    // Apply the initial view once settings are in (and whenever the user
+    // changes it); without this the globe stays on its rotation-0 view
+    // (Europe/Africa) because the settings load finishes after the first
+    // frame, when the early focus calls find no globe state yet.
+    final viewKey = (s.initialView, s.customLat, s.customLng);
+    if (viewKey != _appliedInitialView) {
+      _appliedInitialView = viewKey;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focusInitial();
+      });
+    }
     if (!_isTest) {
       // NOTE: assigning `controller.isRotating` alone only flips a flag;
       // the animation keeps running. Use the start/stop methods so
@@ -181,7 +194,9 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
           isLabelVisible: selected,
           style: PointStyle(
             color: selected ? const Color(0xFFC084FC) : const Color(0xFF38BDF8),
-            size: (selected ? 6 : 3) * _s.markerScale,
+            // Quadratic so the 0.5x-2x slider range is clearly visible
+            // (linear 3px*scale is only a few pixels on screen).
+            size: (selected ? 8 : 4) * _s.markerScale * _s.markerScale,
           ),
           onTap: () => _onCountry(alpha2),
         ),

@@ -523,6 +523,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'English'**
   String get languageEn;
+
+  /// No description provided for @globeScale.
+  ///
+  /// In en, this message translates to:
+  /// **'Globe size'**
+  String get globeScale;
 }
 
 class _AppLocalizationsDelegate

@@ -212,6 +212,15 @@ class SettingsPage extends StatelessWidget {
               ),
               _sliderTile(
                 context,
+                l10n.globeScale,
+                s.globeScale,
+                0.7,
+                1.3,
+                (v) => set(s.copyWith(globeScale: v)),
+                '${s.globeScale.toStringAsFixed(2)}×',
+              ),
+              _sliderTile(
+                context,
                 l10n.markerSize,
                 s.markerScale,
                 0.5,

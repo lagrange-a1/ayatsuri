@@ -55,6 +55,7 @@ class AppSettings {
     this.autoRotate = false,
     this.rotationSpeed = 0.01,
     this.markerScale = 1.0,
+    this.globeScale = 1.0,
     this.initialView = InitialView.asia,
     this.customLat = 28,
     this.customLng = 100,
@@ -78,6 +79,7 @@ class AppSettings {
   final bool autoRotate;
   final double rotationSpeed;
   final double markerScale;
+  final double globeScale;
   final InitialView initialView;
   final double customLat;
   final double customLng;
@@ -113,6 +115,7 @@ class AppSettings {
     bool? autoRotate,
     double? rotationSpeed,
     double? markerScale,
+    double? globeScale,
     InitialView? initialView,
     double? customLat,
     double? customLng,
@@ -138,6 +141,7 @@ class AppSettings {
       autoRotate: autoRotate ?? this.autoRotate,
       rotationSpeed: rotationSpeed ?? this.rotationSpeed,
       markerScale: markerScale ?? this.markerScale,
+      globeScale: globeScale ?? this.globeScale,
       initialView: initialView ?? this.initialView,
       customLat: customLat ?? this.customLat,
       customLng: customLng ?? this.customLng,
@@ -162,6 +166,7 @@ class AppSettings {
     'autoRotate': autoRotate,
     'rotSpeed': rotationSpeed,
     'markerScale': markerScale,
+    'globeScale': globeScale,
     'initialView': initialView.name,
     'customLat': customLat,
     'customLng': customLng,
@@ -200,6 +205,7 @@ class AppSettings {
         return (raw > 0.05 ? raw * 0.05 : raw).clamp(0.002, 0.05);
       }(),
       markerScale: numOf(j['markerScale'], 1.0).clamp(0.5, 2.0),
+      globeScale: numOf(j['globeScale'], 1.0).clamp(0.7, 1.3),
       initialView: enumOf(
         InitialView.values,
         j['initialView'],

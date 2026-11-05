@@ -236,4 +236,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get languageEn => 'English';
+
+  @override
+  String get globeScale => '地球大小';
 }
