@@ -40,8 +40,13 @@ jobs:
         run: flutter pub get
 
       - name: Build APK (release, debug-signed)
+        # Split-per-ABI by default (smaller per-arch APKs, standard for
+        # GitHub releases). workflow_dispatch inputs are empty on tag
+        # pushes, so fall back to 'true' unless explicitly disabled.
+        env:
+          SPLIT_PER_ABI: ${{ inputs.split_per_abi || 'true' }}
         run: |
-          if [ "${{ inputs.split_per_abi }}" = "true" ]; then
+          if [ "$SPLIT_PER_ABI" = "true" ]; then
             flutter build apk --release --split-per-abi
           else
             flutter build apk --release
