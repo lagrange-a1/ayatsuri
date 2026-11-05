@@ -12,7 +12,7 @@ void main() async {
   ) async {
     await dotenv.load();
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(MyApp());
 
     // The globe page is now the home tab; it fetches proxies and groups on
     // startup. In widget tests there is no WebView platform implementation,

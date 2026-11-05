@@ -1,6 +1,47 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+/// Whether [e] looks like a transient connection failure worth retrying
+/// (timeouts, connection refused/reset) instead of an authoritative error.
+bool isTransientDioError(DioException e) {
+  switch (e.type) {
+    case DioExceptionType.connectionTimeout:
+    case DioExceptionType.sendTimeout:
+    case DioExceptionType.transformTimeout:
+    case DioExceptionType.receiveTimeout:
+    case DioExceptionType.connectionError:
+      return true;
+    case DioExceptionType.badCertificate:
+    case DioExceptionType.badResponse:
+    case DioExceptionType.cancel:
+    case DioExceptionType.unknown:
+      return false;
+  }
+}
+
+/// Runs [fn], retrying transient connection failures every [interval]
+/// (default 0.5s) up to [attempts] times.
+///
+/// Returns null when transient failures are exhausted — callers treat that
+/// as "no data" (empty state) instead of an error banner. Non-transient
+/// [DioException]s are rethrown for the caller to surface.
+Future<T?> retryTransient<T>(
+  Future<T> Function() fn, {
+  int attempts = 6,
+  Duration interval = const Duration(milliseconds: 500),
+}) async {
+  for (var i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } on DioException catch (e) {
+      if (!isTransientDioError(e)) rethrow;
+      if (i == attempts - 1) return null;
+      await Future.delayed(interval);
+    }
+  }
+  return null;
+}
+
 class MihomoAPI {
   late final Dio _dio;
   late final String baseUrl;

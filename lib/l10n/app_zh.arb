@@ -1,0 +1,139 @@
+{
+  "@@locale": "zh",
+  "appTitle": "ayatsuri",
+  "navGlobe": "地球",
+  "navInfo": "信息",
+  "navSettings": "设置",
+  "infoTitle": "ayatsuri · Mihomo 信息",
+  "fetchAll": "全部获取",
+  "requestFailed": "请求失败",
+  "retry": "重试",
+  "noDataYet": "暂无数据",
+  "noDataHint": "点击下方按钮查询 Mihomo 核心。",
+  "fetchAllData": "获取全部数据",
+  "sectionVersion": "版本",
+  "sectionConfigs": "配置",
+  "sectionProxies": "代理",
+  "sectionGroups": "策略组",
+  "sectionRules": "规则",
+  "sectionConnections": "连接",
+  "sectionTraffic": "流量",
+  "sectionMemory": "内存",
+  "sectionLogs": "日志",
+  "globeTitle": "选择节点 · 地球",
+  "reloadProxies": "重新加载代理",
+  "globeTestPlaceholder": "地球（测试中不可用）",
+  "tapCountry": "点击一个国家",
+  "selectedCountry": "已选择：{flag} {name}",
+  "@selectedCountry": {
+    "placeholders": {
+      "flag": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "selectedSnack": "已在 {group} 中选择 {proxy}",
+  "@selectedSnack": {
+    "placeholders": {
+      "proxy": {
+        "type": "String"
+      },
+      "group": {
+        "type": "String"
+      }
+    }
+  },
+  "failed": "失败：{error}",
+  "@failed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "close": "关闭",
+  "nodesCount": "{alpha2} · {count} 个节点",
+  "@nodesCount": {
+    "placeholders": {
+      "alpha2": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "failedToLoadProxies": "加载代理失败：\n{error}",
+  "@failedToLoadProxies": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noMatchingNode": "本国暂无匹配节点。",
+  "globeDataFailed": "地球数据加载失败：{error}",
+  "@globeDataFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "blocked": "已屏蔽",
+  "delayMs": "{delay} 毫秒",
+  "@delayMs": {
+    "placeholders": {
+      "delay": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsTitle": "设置",
+  "appearance": "外观",
+  "themeSystem": "跟随系统",
+  "themeLight": "浅色",
+  "themeDark": "深色",
+  "themeColor": "主题颜色",
+  "pureBlack": "纯黑（OLED）",
+  "pureBlackSub": "深色模式下使用纯黑表面",
+  "colorStyle": "配色风格",
+  "textSize": "文字大小",
+  "background": "背景",
+  "noCustomBackground": "无自定义背景",
+  "pickImage": "选择图片",
+  "remove": "移除",
+  "backgroundDimming": "背景调暗",
+  "globeHeader": "地球",
+  "autoRotate": "自动旋转",
+  "rotationSpeed": "旋转速度",
+  "markerSize": "标记大小",
+  "initialView": "初始视角",
+  "asiaView": "亚洲 (28°, 100°)",
+  "globalView": "全球 (0°, 0°)",
+  "customView": "自定义",
+  "latitude": "纬度",
+  "longitude": "经度",
+  "nodeProbe": "节点测速",
+  "maxDelayShown": "最大显示延迟",
+  "unlimited": "不限",
+  "maxDelayMs": "{value} 毫秒",
+  "@maxDelayMs": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "hideBlocked": "隐藏已屏蔽节点",
+  "byDelay": "按延迟",
+  "byName": "按名称",
+  "compactNodeList": "紧凑节点列表",
+  "language": "语言",
+  "languageSystem": "跟随系统",
+  "languageZh": "简体中文",
+  "languageEn": "English"
+}

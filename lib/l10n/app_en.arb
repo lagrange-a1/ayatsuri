@@ -1,0 +1,139 @@
+{
+  "@@locale": "en",
+  "appTitle": "ayatsuri",
+  "navGlobe": "Globe",
+  "navInfo": "Info",
+  "navSettings": "Settings",
+  "infoTitle": "ayatsuri · Mihomo Info",
+  "fetchAll": "Fetch all",
+  "requestFailed": "Request failed",
+  "retry": "Retry",
+  "noDataYet": "No data yet",
+  "noDataHint": "Tap the button below to query the Mihomo core.",
+  "fetchAllData": "Fetch All Data",
+  "sectionVersion": "Version",
+  "sectionConfigs": "Configs",
+  "sectionProxies": "Proxies",
+  "sectionGroups": "Groups",
+  "sectionRules": "Rules",
+  "sectionConnections": "Connections",
+  "sectionTraffic": "Traffic",
+  "sectionMemory": "Memory",
+  "sectionLogs": "Logs",
+  "globeTitle": "Select a node · Globe",
+  "reloadProxies": "Reload proxies",
+  "globeTestPlaceholder": "Globe (3D unavailable in tests)",
+  "tapCountry": "Tap a country",
+  "selectedCountry": "Selected: {flag} {name}",
+  "@selectedCountry": {
+    "placeholders": {
+      "flag": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "selectedSnack": "Selected {proxy} in {group}",
+  "@selectedSnack": {
+    "placeholders": {
+      "proxy": {
+        "type": "String"
+      },
+      "group": {
+        "type": "String"
+      }
+    }
+  },
+  "failed": "Failed: {error}",
+  "@failed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "close": "Close",
+  "nodesCount": "{alpha2} · {count} node(s)",
+  "@nodesCount": {
+    "placeholders": {
+      "alpha2": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "failedToLoadProxies": "Failed to load proxies:\n{error}",
+  "@failedToLoadProxies": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "noMatchingNode": "No matching node for this country.",
+  "globeDataFailed": "Globe data failed: {error}",
+  "@globeDataFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "blocked": "blocked",
+  "delayMs": "{delay} ms",
+  "@delayMs": {
+    "placeholders": {
+      "delay": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsTitle": "Settings",
+  "appearance": "Appearance",
+  "themeSystem": "System",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "themeColor": "Theme color",
+  "pureBlack": "Pure black (OLED)",
+  "pureBlackSub": "Pure-black surfaces in dark mode",
+  "colorStyle": "Color style",
+  "textSize": "Text size",
+  "background": "Background",
+  "noCustomBackground": "No custom background",
+  "pickImage": "Pick image",
+  "remove": "Remove",
+  "backgroundDimming": "Background dimming",
+  "globeHeader": "Globe",
+  "autoRotate": "Auto-rotate",
+  "rotationSpeed": "Rotation speed",
+  "markerSize": "Marker size",
+  "initialView": "Initial view",
+  "asiaView": "Asia (28°, 100°)",
+  "globalView": "Global (0°, 0°)",
+  "customView": "Custom",
+  "latitude": "Latitude",
+  "longitude": "Longitude",
+  "nodeProbe": "Node probe",
+  "maxDelayShown": "Max delay shown",
+  "unlimited": "Unlimited",
+  "maxDelayMs": "{value} ms",
+  "@maxDelayMs": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "hideBlocked": "Hide blocked nodes",
+  "byDelay": "By delay",
+  "byName": "By name",
+  "compactNodeList": "Compact node list",
+  "language": "Language",
+  "languageSystem": "Follow system",
+  "languageZh": "简体中文",
+  "languageEn": "English"
+}

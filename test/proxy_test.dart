@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ayatsuri/endpoints.dart';
 import 'package:ayatsuri/proxies/country_map.dart';
+import 'package:ayatsuri/l10n/app_localizations.dart';
 import 'package:ayatsuri/proxies/proxy_service.dart';
 
 class FakeMihomoAPI extends MihomoAPI {
@@ -162,9 +163,13 @@ void main() async {
   });
 
   test('delay labels', () {
-    expect(delayLabel(null), '—');
-    expect(delayLabel(0), 'blocked');
-    expect(delayLabel(42), '42 ms');
+    final en = lookupAppLocalizations(const Locale('en'));
+    final zh = lookupAppLocalizations(const Locale('zh'));
+    expect(delayLabel(en, null), '—');
+    expect(delayLabel(en, 0), 'blocked');
+    expect(delayLabel(en, 42), '42 ms');
+    expect(delayLabel(zh, 0), '已屏蔽');
+    expect(delayLabel(zh, 42), '42 毫秒');
   });
 
   test('delay colors follow the thresholds', () {

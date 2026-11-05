@@ -8,6 +8,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
+import 'package:ayatsuri/l10n/app_localizations.dart';
+
 import '../endpoints.dart';
 import 'country_map.dart';
 
@@ -71,20 +73,30 @@ class ProxySelection {
       (_groups ?? []).where((group) => group.isSelector).toList();
 
   /// Fetch both proxy and group state.
+  ///
+  /// Transient connection failures are retried (~0.5s interval); if they
+  /// persist the load degrades to empty state with no error, only
+  /// non-transient failures are surfaced.
   Future<void> load() async {
     loading = true;
     error = null;
+    _fatalError = null;
     try {
       await Future.wait([_loadProxies(), _loadGroups()]);
+    } on DioException catch (e) {
+      if (!isTransientDioError(e)) _fatalError = e.toString();
     } catch (e) {
-      error = e.toString();
-    } finally {
-      loading = false;
+      _fatalError = e.toString();
     }
+    error = _fatalError;
+    loading = false;
   }
 
+  String? _fatalError;
+
   Future<void> _loadProxies() async {
-    final response = await _api.getProxies();
+    final response = await retryTransient(() => _api.getProxies());
+    if (response == null) return;
     final map = <String, ProxyItem>{};
     final data = response.data as Map<String, dynamic>;
     // `GET /proxies` returns `{ "proxies": { "<name>": { ... } } }`
@@ -104,7 +116,8 @@ class ProxySelection {
   }
 
   Future<void> _loadGroups() async {
-    final response = await _api.getGroups();
+    final response = await retryTransient(() => _api.getGroups());
+    if (response == null) return;
     final list = <GroupItem>[];
     final data = response.data as Map<String, dynamic>;
     final proxies = (data['proxies'] as List<dynamic>?) ?? <dynamic>[];
@@ -232,12 +245,12 @@ Color delayColor(int? delay) {
       : Colors.red;
 }
 
-/// Probe result label: `—` for unprobed, `blocked` for 0-delay, `N ms` for the
-/// reported latency.
-String delayLabel(int? delay) {
+/// Probe result label: `—` for unprobed, localized `blocked` for 0-delay,
+/// `N ms` for the reported latency.
+String delayLabel(AppLocalizations l10n, int? delay) {
   if (delay == null) return '—';
-  if (delay == 0) return 'blocked';
-  return '$delay ms';
+  if (delay == 0) return l10n.blocked;
+  return l10n.delayMs(delay);
 }
 
 CountryPattern patternFor(String alpha2) {

@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required so release builds can reach the Mihomo API.
+         Debug/profile variants already declare this; it must also be
+         in the main manifest or release builds ship without it. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="ayatsuri"
         android:name="${applicationName}"

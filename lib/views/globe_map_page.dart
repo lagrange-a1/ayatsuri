@@ -14,11 +14,11 @@
  */
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:ayatsuri/l10n/app_localizations.dart';
 import 'package:flutter_earth_globe/flutter_earth_globe.dart';
 import 'package:flutter_earth_globe/flutter_earth_globe_controller.dart';
 import 'package:flutter_earth_globe/globe_coordinates.dart';
@@ -28,11 +28,14 @@ import '../endpoints.dart';
 import '../proxies/country_map.dart';
 import '../proxies/geo_hit_test.dart';
 import '../proxies/proxy_service.dart';
+import '../settings/app_settings.dart';
+import '../test_env.dart';
 
 class GlobeMapPage extends StatefulWidget {
-  const GlobeMapPage({super.key, required this.api});
+  const GlobeMapPage({super.key, required this.api, this.settingsController});
 
   final MihomoAPI api;
+  final AppSettingsController? settingsController;
 
   @override
   State<GlobeMapPage> createState() => _GlobeMapPageState();
@@ -46,34 +49,42 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
   String? _selectedAlpha2;
   String? _hoverAlpha2;
   String? _loadError;
+  bool _globeDataError = false;
   Timer? _tapTimer;
   int _tapToken = 0;
+  late final AppSettingsController _settings;
+
+  AppSettings get _s => _settings.settings;
 
   /// In widget tests the globe's shader/texture pipeline is unavailable;
   /// render a placeholder instead.
-  bool get _isTest => Platform.environment.containsKey('FLUTTER_TEST');
+  bool get _isTest => isFlutterTest;
 
   @override
   void initState() {
     super.initState();
+    _settings = widget.settingsController ?? AppSettingsController();
+    _settings.addListener(_onSettingsChanged);
     _selection = ProxySelection(api: widget.api);
     _globeController = FlutterEarthGlobeController(
       // Match the upstream example's setup: day surface + night surface.
       surface: const AssetImage('assets/globe/earth-day.jpg'),
       nightSurface: const AssetImage('assets/globe/earth-night.jpg'),
-      isRotating: false,
+      isRotating: _s.autoRotate,
+      rotationSpeed: _s.rotationSpeed,
       isZoomEnabled: true,
       zoom: 0.5,
       minZoom: -1.5,
       maxZoom: 5,
     );
-    _globeController.onLoaded = () => _focusAsia();
+    _globeController.onLoaded = _focusInitial;
     unawaited(_initGeoData());
     unawaited(_loadSelection());
   }
 
   @override
   void dispose() {
+    _settings.removeListener(_onSettingsChanged);
     _tapTimer?.cancel();
     // The package's dispose() touches a late AnimationController that only
     // the globe widget initializes; in tests the globe is never built.
@@ -91,26 +102,52 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
       // Start facing Asia, where most of this project's nodes are. The
       // globe state only exists after the first frame, so focus post-frame
       // (and again once the texture is ready, in case of an early call).
-      WidgetsBinding.instance.addPostFrameCallback((_) => _focusAsia());
-      _globeController.onLoaded = () => _focusAsia();
+      WidgetsBinding.instance.addPostFrameCallback((_) => _focusInitial());
+      _globeController.onLoaded = _focusInitial;
       _syncPoints();
     } catch (e) {
-      if (mounted) setState(() => _loadError = 'Globe data failed: $e');
+      if (mounted) {
+        setState(() {
+          _loadError = e.toString();
+          _globeDataError = true;
+        });
+      }
     }
   }
 
-  void _focusAsia() {
+  void _focusInitial() {
     _globeController.globeKey.currentState?.focusOnCoordinates(
-      const GlobeCoordinates(28, 100),
+      GlobeCoordinates(_s.latLngLat, _s.latLngLng),
       animate: false,
       duration: null,
     );
   }
 
+  void _onSettingsChanged() {
+    if (!mounted) return;
+    final s = _s;
+    if (!_isTest) {
+      // NOTE: assigning `controller.isRotating` alone only flips a flag;
+      // the animation keeps running. Use the start/stop methods so
+      // turning auto-rotate off actually stops the globe.
+      if (s.autoRotate && !_globeController.isRotating) {
+        _globeController.startRotation();
+      } else if (!s.autoRotate && _globeController.isRotating) {
+        _globeController.stopRotation();
+      }
+      _globeController.setRotationSpeed(s.rotationSpeed);
+    }
+    _syncPoints();
+    if (mounted) setState(() {});
+  }
+
   Future<void> _loadSelection() async {
     await _selection.load();
     if (!mounted) return;
-    setState(() => _loadError = _selection.error);
+    setState(() {
+      _loadError = _selection.error;
+      _globeDataError = false;
+    });
     _syncPoints();
   }
 
@@ -144,7 +181,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
           isLabelVisible: selected,
           style: PointStyle(
             color: selected ? const Color(0xFFC084FC) : const Color(0xFF38BDF8),
-            size: selected ? 6 : 3,
+            size: (selected ? 6 : 3) * _s.markerScale,
           ),
           onTap: () => _onCountry(alpha2),
         ),
@@ -199,10 +236,15 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
       builder: (_) => _CountrySheet(
         selection: _selection,
         alpha2: alpha2,
+        maxDelayMs: _s.maxDelayMs,
+        hideBlocked: _s.hideBlocked,
+        probeSort: _s.probeSort,
+        compact: _s.compactNodeList,
         onSelected: (proxyName, groupName) {
           if (mounted) {
+            final l10n = AppLocalizations.of(context);
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Selected $proxyName in $groupName')),
+              SnackBar(content: Text(l10n.selectedSnack(proxyName, groupName))),
             );
           }
         },
@@ -212,6 +254,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final hoverPattern = _hoverAlpha2 == null ? null : kCountries[_hoverAlpha2];
     final selectedPattern = _selectedAlpha2 == null
         ? null
@@ -219,19 +262,35 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
     return Scaffold(
       backgroundColor: const Color(0xFF05070D),
       appBar: AppBar(
-        title: const Text('Select a node · Globe'),
+        title: Text(l10n.globeTitle),
         actions: [
           IconButton(
             onPressed: _loadSelection,
             icon: const Icon(Icons.refresh),
-            tooltip: 'Reload proxies',
+            tooltip: l10n.reloadProxies,
           ),
         ],
       ),
       body: Stack(
         children: [
+          // Custom background (cover) + readability scrim behind the globe.
+          if (_settings.backgroundBytes != null) ...[
+            Positioned.fill(
+              child: Image.memory(
+                _settings.backgroundBytes!,
+                fit: BoxFit.cover,
+              ),
+            ),
+            Positioned.fill(
+              child: Container(
+                color: Theme.of(
+                  context,
+                ).colorScheme.surface.withValues(alpha: _s.backgroundOpacity),
+              ),
+            ),
+          ],
           if (_isTest)
-            const Center(child: Text('Globe (3D unavailable in tests)'))
+            Center(child: Text(l10n.globeTestPlaceholder))
           else
             LayoutBuilder(
               builder: (context, constraints) {
@@ -266,11 +325,13 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
                   const SizedBox(width: 8),
                   Text(
                     _selectedAlpha2 != null
-                        ? 'Selected: ${selectedPattern?.flag ?? ''} '
-                              '${selectedPattern?.name ?? _selectedAlpha2}'
+                        ? l10n.selectedCountry(
+                            selectedPattern?.flag ?? '',
+                            selectedPattern?.name ?? _selectedAlpha2!,
+                          )
                         : hoverPattern != null
                         ? '${hoverPattern.flag} ${hoverPattern.name}'
-                        : 'Tap a country',
+                        : l10n.tapCountry,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -301,7 +362,9 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        _loadError!,
+                        _globeDataError
+                            ? l10n.globeDataFailed(_loadError!)
+                            : _loadError!,
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onErrorContainer,
                           fontSize: 12,
@@ -329,11 +392,19 @@ class _CountrySheet extends StatefulWidget {
     required this.selection,
     required this.alpha2,
     required this.onSelected,
+    this.maxDelayMs = 0,
+    this.hideBlocked = false,
+    this.probeSort = ProbeSort.delay,
+    this.compact = false,
   });
 
   final ProxySelection selection;
   final String alpha2;
   final void Function(String proxyName, String groupName) onSelected;
+  final int maxDelayMs;
+  final bool hideBlocked;
+  final ProbeSort probeSort;
+  final bool compact;
 
   @override
   State<_CountrySheet> createState() => _CountrySheetState();
@@ -374,7 +445,9 @@ class _CountrySheetState extends State<_CountrySheet> {
       setState(() => _selecting = null);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed: ${e.message ?? e.toString()}'),
+          content: Text(
+            AppLocalizations.of(context).failed(e.message ?? e.toString()),
+          ),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -390,9 +463,37 @@ class _CountrySheetState extends State<_CountrySheet> {
     Navigator.of(context).pop();
   }
 
+  List<ProxyCandidate> get _visibleCandidates {
+    var list = _candidates.where((c) {
+      final d = c.proxy.delay;
+      if (widget.hideBlocked && d == 0) return false;
+      if (widget.maxDelayMs > 0 && d != null && d > widget.maxDelayMs) {
+        return false;
+      }
+      return true;
+    }).toList();
+    if (widget.probeSort == ProbeSort.delay) {
+      list.sort((a, b) {
+        final da = a.proxy.delay;
+        final db = b.proxy.delay;
+        if (da == null && db == null) return 0;
+        if (da == null) return 1;
+        if (db == null) return -1;
+        if (da == 0 && db != 0) return 1;
+        if (db == 0 && da != 0) return -1;
+        return da.compareTo(db);
+      });
+    } else {
+      list.sort((a, b) => a.proxy.name.compareTo(b.proxy.name));
+    }
+    return list;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final pattern = kCountries[widget.alpha2];
+    final visible = _visibleCandidates;
     final scheme = Theme.of(context).colorScheme;
     final error = widget.selection.error;
     return ConstrainedBox(
@@ -421,7 +522,7 @@ class _CountrySheetState extends State<_CountrySheet> {
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                       Text(
-                        '${widget.alpha2} · ${_candidates.length} node(s)',
+                        l10n.nodesCount(widget.alpha2, visible.length),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
@@ -430,19 +531,19 @@ class _CountrySheetState extends State<_CountrySheet> {
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.close),
-                  tooltip: 'Close',
+                  tooltip: l10n.close,
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            if (_candidates.isEmpty)
+            if (visible.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                   child: Text(
                     error != null
-                        ? 'Failed to load proxies:\n$error'
-                        : 'No matching node for this country.',
+                        ? l10n.failedToLoadProxies(error)
+                        : l10n.noMatchingNode,
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -451,10 +552,13 @@ class _CountrySheetState extends State<_CountrySheet> {
               Flexible(
                 child: ListView(
                   shrinkWrap: true,
-                  children: _candidates.map((candidate) {
+                  children: visible.map((candidate) {
                     final delay = candidate.proxy.delay;
                     final color = delayColor(delay);
                     return ListTile(
+                      visualDensity: widget.compact
+                          ? VisualDensity.compact
+                          : VisualDensity.standard,
                       leading: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -477,7 +581,7 @@ class _CountrySheetState extends State<_CountrySheet> {
                       ),
                       title: Text(candidate.group.name),
                       subtitle: Text(
-                        delayLabel(delay),
+                        delayLabel(l10n, delay),
                         style: TextStyle(color: color),
                       ),
                       trailing: _selecting == candidate.proxy.name

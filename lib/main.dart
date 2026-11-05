@@ -3,32 +3,65 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:ayatsuri/l10n/app_localizations.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'endpoints.dart';
+import 'settings/app_settings.dart';
+import 'settings/settings_page.dart';
 import 'views/globe_map_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load();
-  runApp(const MyApp());
+  final settingsController = AppSettingsController();
+  await settingsController.load();
+  runApp(MyApp(settingsController: settingsController));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  MyApp({super.key, AppSettingsController? settingsController})
+    : _controller = settingsController ?? AppSettingsController();
+
+  final AppSettingsController _controller;
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'ayatsuri',
-      theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
-      home: const MihomoApp(),
+    return ListenableBuilder(
+      listenable: _controller,
+      builder: (context, _) {
+        final s = _controller.settings;
+        return MaterialApp(
+          title: 'ayatsuri',
+          locale: s.locale.flutterLocale,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          themeMode: s.themeMode,
+          theme: buildAppTheme(s, Brightness.light),
+          darkTheme: buildAppTheme(s, Brightness.dark),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(s.textScale)),
+            child: child!,
+          ),
+          home: MihomoApp(settingsController: _controller),
+        );
+      },
     );
   }
 }
 
 /// Bottom-navigation shell wrapping the system info page and the proxy map page.
 class MihomoApp extends StatefulWidget {
-  const MihomoApp({super.key});
+  const MihomoApp({super.key, required this.settingsController});
+
+  final AppSettingsController settingsController;
 
   @override
   State<MihomoApp> createState() => _MihomoAppState();
@@ -46,16 +79,24 @@ class _MihomoAppState extends State<MihomoApp> {
 
   /// The globe page is the home tab; both pages auto-fetch controller state
   /// when they are first built (startup), so the visible page is fresh.
-  List<Widget> get pages => [GlobeMapPage(api: _api), MihomoInfo(api: _api)];
+  List<Widget> get pages => [
+    GlobeMapPage(api: _api, settingsController: widget.settingsController),
+    MihomoInfo(api: _api),
+    SettingsPage(controller: widget.settingsController),
+  ];
 
-  List<BottomNavigationBarItem> get items => [
+  List<BottomNavigationBarItem> items(AppLocalizations l10n) => [
     BottomNavigationBarItem(
       icon: const Icon(Icons.public, size: 28),
-      label: 'Globe',
+      label: l10n.navGlobe,
     ),
-    const BottomNavigationBarItem(
-      icon: Icon(Icons.info, size: 28),
-      label: 'Info',
+    BottomNavigationBarItem(
+      icon: const Icon(Icons.info, size: 28),
+      label: l10n.navInfo,
+    ),
+    BottomNavigationBarItem(
+      icon: const Icon(Icons.settings, size: 28),
+      label: l10n.navSettings,
     ),
   ];
 
@@ -66,7 +107,7 @@ class _MihomoAppState extends State<MihomoApp> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _index,
         onTap: (i) => setState(() => _index = i),
-        items: items,
+        items: items(AppLocalizations.of(context)),
         type: BottomNavigationBarType.fixed,
       ),
     );
@@ -88,6 +129,17 @@ class _MihomoInfoState extends State<MihomoInfo> {
   String? _error;
 
   // ── Collected data ──────────────────────────────────────────────────
+  bool get _hasAnyData =>
+      _version != null ||
+      _configs != null ||
+      _proxies != null ||
+      _groups != null ||
+      _rules != null ||
+      _connections != null ||
+      _traffic != null ||
+      _memory != null ||
+      _logs != null;
+
   Map<String, dynamic>? _version;
   Map<String, dynamic>? _configs;
   Map<String, dynamic>? _proxies;
@@ -107,41 +159,75 @@ class _MihomoInfoState extends State<MihomoInfo> {
   }
 
   Future<void> _fetchEverything() async {
+    if (!mounted) return;
     setState(() {
       _loading = true;
       _error = null;
     });
 
-    try {
-      await Future.wait([
-        _api.getVersion().then(
-          (r) => _version = r.data as Map<String, dynamic>,
-        ),
-        _api.getConfigs().then(
-          (r) => _configs = r.data as Map<String, dynamic>,
-        ),
-        _api.getProxies().then(
-          (r) => _proxies = r.data as Map<String, dynamic>,
-        ),
-        _api.getGroups().then((r) => _groups = r.data as Map<String, dynamic>),
-        _api.getRules().then((r) => _rules = r.data as Map<String, dynamic>),
-        _api.getConnections().then(
-          (r) => _connections = r.data as Map<String, dynamic>,
-        ),
-        _api.getTraffic().then(
-          (r) => _traffic = r.data as Map<String, dynamic>,
-        ),
-        _api.getMemory().then((r) => _memory = r.data as Map<String, dynamic>),
-        _api.getLogs().then((r) => _logs = r.data as Map<String, dynamic>),
-      ]);
-    } on DioException catch (e) {
-      _error = _formatDioError(e);
-    } catch (e) {
-      _error = e.toString();
-    }
+    // Each endpoint is fetched independently: one slow/flaky endpoint
+    // (e.g. the streaming /traffic, /memory, /logs) must not fail the
+    // whole page. Transient connection failures are retried every 0.5s
+    // in the background and degrade to an empty section; only
+    // non-transient failures surface the error page.
+    final fetchers = <Future<void> Function()>[
+      () async {
+        final r = await retryTransient(() => _api.getVersion());
+        if (r != null) _version = r.data as Map<String, dynamic>;
+      },
+      () async {
+        final r = await retryTransient(() => _api.getConfigs());
+        if (r != null) _configs = r.data as Map<String, dynamic>;
+      },
+      () async {
+        final r = await retryTransient(() => _api.getProxies());
+        if (r != null) _proxies = r.data as Map<String, dynamic>;
+      },
+      () async {
+        final r = await retryTransient(() => _api.getGroups());
+        if (r != null) _groups = r.data as Map<String, dynamic>;
+      },
+      () async {
+        final r = await retryTransient(() => _api.getRules());
+        if (r != null) _rules = r.data as Map<String, dynamic>;
+      },
+      () async {
+        final r = await retryTransient(() => _api.getConnections());
+        if (r != null) _connections = r.data as Map<String, dynamic>;
+      },
+      () async {
+        final r = await retryTransient(() => _api.getTraffic());
+        if (r != null) _traffic = r.data as Map<String, dynamic>;
+      },
+      () async {
+        final r = await retryTransient(() => _api.getMemory());
+        if (r != null) _memory = r.data as Map<String, dynamic>;
+      },
+      () async {
+        final r = await retryTransient(() => _api.getLogs());
+        if (r != null) _logs = r.data as Map<String, dynamic>;
+      },
+    ];
 
-    if (mounted) {
-      setState(() => _loading = false);
+    var pending = fetchers.length;
+    for (final fetch in fetchers) {
+      fetch()
+          .catchError((Object e) {
+            // Non-transient failure: remember the first one; the error
+            // page only shows when nothing loaded at all.
+            _error ??= e is DioException ? _formatDioError(e) : e.toString();
+          })
+          .whenComplete(() {
+            pending--;
+            if (mounted) {
+              setState(() {
+                _loading = pending > 0;
+                if (pending == 0 && _version == null && _error != null) {
+                  // Keep the error so the page can show it.
+                }
+              });
+            }
+          });
     }
   }
 
@@ -174,10 +260,11 @@ class _MihomoInfoState extends State<MihomoInfo> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text('ayatsuri · Mihomo Info'),
+        title: Text(l10n.infoTitle),
         actions: [
           IconButton(
             onPressed: _loading ? null : _fetchEverything,
@@ -188,18 +275,20 @@ class _MihomoInfoState extends State<MihomoInfo> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.refresh),
-            tooltip: 'Fetch all',
+            tooltip: l10n.fetchAll,
           ),
         ],
       ),
       floatingActionButton: _version != null && !_loading
           ? FloatingActionButton(
               onPressed: _fetchEverything,
-              tooltip: 'Fetch all',
+              tooltip: l10n.fetchAll,
               child: const Icon(Icons.refresh),
             )
           : null,
-      body: _error != null
+      // Error page only when nothing loaded at all; partial data (or
+      // transient failures degraded to empty) keeps the list/empty state.
+      body: _error != null && _version == null && !_hasAnyData
           ? Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
@@ -212,8 +301,8 @@ class _MihomoInfoState extends State<MihomoInfo> {
                       color: Colors.red,
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Request failed',
+                    Text(
+                      l10n.requestFailed,
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -228,7 +317,7 @@ class _MihomoInfoState extends State<MihomoInfo> {
                     const SizedBox(height: 24),
                     FilledButton(
                       onPressed: _fetchEverything,
-                      child: const Text('Retry'),
+                      child: Text(l10n.retry),
                     ),
                   ],
                 ),
@@ -245,17 +334,14 @@ class _MihomoInfoState extends State<MihomoInfo> {
                     color: Colors.grey,
                   ),
                   const SizedBox(height: 16),
-                  Text('No data yet'),
+                  Text(l10n.noDataYet),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Tap the button below to query the Mihomo core.',
-                    style: TextStyle(color: Colors.grey),
-                  ),
+                  Text(l10n.noDataHint, style: TextStyle(color: Colors.grey)),
                   const SizedBox(height: 32),
                   FilledButton.icon(
                     onPressed: _fetchEverything,
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Fetch All Data'),
+                    label: Text(l10n.fetchAllData),
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 32,
@@ -269,15 +355,15 @@ class _MihomoInfoState extends State<MihomoInfo> {
           : ListView(
               padding: const EdgeInsets.all(12),
               children: [
-                _section('Version', _version),
-                _section('Configs', _configs),
-                _section('Proxies', _proxies),
-                _section('Groups', _groups),
-                _section('Rules', _rules),
-                _section('Connections', _connections),
-                _section('Traffic', _traffic),
-                _section('Memory', _memory),
-                _section('Logs', _logs),
+                _section(l10n.sectionVersion, _version),
+                _section(l10n.sectionConfigs, _configs),
+                _section(l10n.sectionProxies, _proxies),
+                _section(l10n.sectionGroups, _groups),
+                _section(l10n.sectionRules, _rules),
+                _section(l10n.sectionConnections, _connections),
+                _section(l10n.sectionTraffic, _traffic),
+                _section(l10n.sectionMemory, _memory),
+                _section(l10n.sectionLogs, _logs),
               ],
             ),
     );
