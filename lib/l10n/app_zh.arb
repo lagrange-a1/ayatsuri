@@ -122,7 +122,7 @@
   "customView": "自定义",
   "latitude": "纬度",
   "longitude": "经度",
-  "nodeProbe": "节点测速",
+  "nodeProbe": "节点 ping",
   "maxDelayShown": "最大显示延迟",
   "unlimited": "不限",
   "maxDelayMs": "{value} 毫秒",
@@ -144,7 +144,7 @@
   "globeScale": "地球大小",
   "initialViewAuto": "自动（当前节点）",
   "timeout": "超时",
-  "probeInterval": "定期测速（全部节点）",
+  "probeInterval": "定期 ping（全部节点）",
   "probeIntervalOff": "关闭",
   "probeIntervalSec": "每 {seconds} 秒",
   "@probeIntervalSec": {

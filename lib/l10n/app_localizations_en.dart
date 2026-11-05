@@ -215,7 +215,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get longitude => 'Longitude';
 
   @override
-  String get nodeProbe => 'Node probe';
+  String get nodeProbe => 'Node ping';
 
   @override
   String get maxDelayShown => 'Max delay shown';
@@ -262,7 +262,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timeout => 'TIMEOUT';
 
   @override
-  String get probeInterval => 'Probe all nodes periodically';
+  String get probeInterval => 'Ping all nodes periodically';
 
   @override
   String get probeIntervalOff => 'Off';

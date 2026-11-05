@@ -485,7 +485,7 @@ abstract class AppLocalizations {
   /// No description provided for @nodeProbe.
   ///
   /// In en, this message translates to:
-  /// **'Node probe'**
+  /// **'Node ping'**
   String get nodeProbe;
 
   /// No description provided for @maxDelayShown.
@@ -575,7 +575,7 @@ abstract class AppLocalizations {
   /// No description provided for @probeInterval.
   ///
   /// In en, this message translates to:
-  /// **'Probe all nodes periodically'**
+  /// **'Ping all nodes periodically'**
   String get probeInterval;
 
   /// No description provided for @probeIntervalOff.

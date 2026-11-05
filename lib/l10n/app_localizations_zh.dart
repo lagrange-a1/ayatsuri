@@ -215,7 +215,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get longitude => '经度';
 
   @override
-  String get nodeProbe => '节点测速';
+  String get nodeProbe => '节点 ping';
 
   @override
   String get maxDelayShown => '最大显示延迟';
@@ -262,7 +262,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get timeout => '超时';
 
   @override
-  String get probeInterval => '定期测速（全部节点）';
+  String get probeInterval => '定期 ping（全部节点）';
 
   @override
   String get probeIntervalOff => '关闭';
