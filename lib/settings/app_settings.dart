@@ -92,7 +92,7 @@ Map<String, dynamic> _normalize(Map<String, dynamic> j) {
 
   enumKey('themeMode', ThemeMode.values, ThemeMode.system);
   enumKey('variant', DynamicSchemeVariant.values, DynamicSchemeVariant.content);
-  enumKey('initialView', InitialView.values, InitialView.asia);
+  enumKey('initialView', InitialView.values, InitialView.auto);
   enumKey('probeSort', ProbeSort.values, ProbeSort.delay);
   enumKey('locale', AppLocale.values, AppLocale.system);
 
