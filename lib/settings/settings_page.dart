@@ -5,12 +5,12 @@ import 'package:ayatsuri/l10n/app_localizations.dart';
 import 'app_settings.dart';
 
 const _seedPresets = <Color>[
-  Color(0xFF6750A4), // purple (default)
+  Color(0xFFE65100), // orange (default)
+  Color(0xFF6750A4), // purple
   Color(0xFF0061A4), // blue
   Color(0xFF006A6A), // teal
   Color(0xFF2E7D32), // green
   Color(0xFFB3261E), // red
-  Color(0xFFE65100), // orange
   Color(0xFFAD1457), // pink
   Color(0xFF455A64), // slate
 ];
