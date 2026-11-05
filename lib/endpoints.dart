@@ -43,17 +43,31 @@ Future<T?> retryTransient<T>(
 }
 
 class MihomoAPI {
-  late final Dio _dio;
-  late final String baseUrl;
+  late Dio _dio;
+  late String baseUrl;
 
-  MihomoAPI() {
+  MihomoAPI({String? baseUrl, String? secret}) {
+    _init(baseUrl, secret);
+  }
+
+  /// Re-point at a new controller (settings changed) without recreating
+  /// the instance, so pages holding this API pick up the new endpoint.
+  /// Empty values fall back to the `.env` host/port/secret.
+  void reconfigure({String? baseUrl, String? secret}) {
+    _init(baseUrl, secret);
+  }
+
+  void _init(String? url, String? token) {
     if (!dotenv.isInitialized) {
       dotenv.load();
     }
-    final host = dotenv.env['host'] ?? 'localhost';
-    final port = dotenv.env['port'] ?? '9091';
-    final secret = dotenv.env['secret'] ?? '***';
-    baseUrl = 'http://$host:$port';
+    final trimmed = url?.trim();
+    baseUrl = (trimmed != null && trimmed.isNotEmpty)
+        ? trimmed.replaceAll(RegExp(r'/+$'), '')
+        : 'http://${dotenv.env['host'] ?? 'localhost'}:${dotenv.env['port'] ?? '9091'}';
+    final secret = (token != null && token.isNotEmpty)
+        ? token
+        : (dotenv.env['secret'] ?? '***');
 
     _dio = Dio(
       BaseOptions(

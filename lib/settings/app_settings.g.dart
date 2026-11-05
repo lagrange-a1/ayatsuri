@@ -18,6 +18,8 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
       $enumDecodeNullable(_$DynamicSchemeVariantEnumMap, json['variant']) ??
       DynamicSchemeVariant.content,
   textScale: (json['textScale'] as num?)?.toDouble() ?? 1.0,
+  serverUrl: json['serverUrl'] as String?,
+  secret: json['secret'] as String?,
   backgroundBase64: json['bg'] as String?,
   backgroundPath: json['bgPath'] as String?,
   backgroundOpacity: (json['bgOpacity'] as num?)?.toDouble() ?? 0.65,
@@ -49,6 +51,8 @@ Map<String, dynamic> _$AppSettingsToJson(_AppSettings instance) =>
       'pureBlack': instance.pureBlack,
       'variant': _$DynamicSchemeVariantEnumMap[instance.schemeVariant]!,
       'textScale': instance.textScale,
+      'serverUrl': instance.serverUrl,
+      'secret': instance.secret,
       'bg': instance.backgroundBase64,
       'bgPath': instance.backgroundPath,
       'bgOpacity': instance.backgroundOpacity,

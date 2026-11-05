@@ -74,17 +74,45 @@ class _MihomoAppState extends State<MihomoApp> {
   int _index = 0;
   late final MihomoAPI _api;
 
+  /// Identity of the controller endpoint currently in use; the data pages
+  /// are keyed by it so a settings change rebuilds them (refetching).
+  late String _connKey;
+
+  static String _keyOf(AppSettings s) => '${s.serverUrl}|${s.secret}';
+
   @override
   void initState() {
     super.initState();
-    _api = MihomoAPI();
+    final s = widget.settingsController.settings;
+    _api = MihomoAPI(baseUrl: s.serverUrl, secret: s.secret);
+    _connKey = _keyOf(s);
+    widget.settingsController.addListener(_onSettingsChanged);
+  }
+
+  void _onSettingsChanged() {
+    final key = _keyOf(widget.settingsController.settings);
+    if (key == _connKey) return;
+    _connKey = key;
+    final s = widget.settingsController.settings;
+    _api.reconfigure(baseUrl: s.serverUrl, secret: s.secret);
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    widget.settingsController.removeListener(_onSettingsChanged);
+    super.dispose();
   }
 
   /// The globe page is the home tab; both pages auto-fetch controller state
   /// when they are first built (startup), so the visible page is fresh.
   List<Widget> get pages => [
-    GlobeMapPage(api: _api, settingsController: widget.settingsController),
-    MihomoInfo(api: _api),
+    GlobeMapPage(
+      key: ValueKey('globe$_connKey'),
+      api: _api,
+      settingsController: widget.settingsController,
+    ),
+    MihomoInfo(key: ValueKey('info$_connKey'), api: _api),
     SettingsPage(controller: widget.settingsController),
   ];
 

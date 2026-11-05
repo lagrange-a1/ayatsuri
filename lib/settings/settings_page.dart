@@ -135,6 +135,24 @@ class SettingsPage extends StatelessWidget {
                 (v) => set(s.copyWith(textScale: v)),
                 '${s.textScale.toStringAsFixed(2)}×',
               ),
+              _header(context, l10n.connection),
+              _SettingsTextField(
+                initialValue: s.serverUrl ?? '',
+                labelText: l10n.serverUrl,
+                hintText: l10n.serverUrlHint,
+                keyboardType: TextInputType.url,
+                onCommit: (v) => set(
+                  s.copyWith(serverUrl: v.trim().isEmpty ? null : v.trim()),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _SettingsTextField(
+                initialValue: s.secret ?? '',
+                labelText: l10n.secret,
+                hintText: l10n.secretHint,
+                obscureText: true,
+                onCommit: (v) => set(s.copyWith(secret: v.isEmpty ? null : v)),
+              ),
               const Divider(height: 32),
               _header(context, l10n.background),
               ClipRRect(
@@ -372,6 +390,64 @@ class SettingsPage extends StatelessWidget {
         width: 72,
         child: Text(suffix, textAlign: TextAlign.end),
       ),
+    );
+  }
+}
+
+/// Single-line settings text field that commits on editing completion
+/// (done button / focus loss), not on every keystroke — so a half-typed
+/// URL does not re-point the API client mid-input.
+class _SettingsTextField extends StatefulWidget {
+  const _SettingsTextField({
+    required this.initialValue,
+    required this.labelText,
+    required this.hintText,
+    required this.onCommit,
+    this.keyboardType,
+    this.obscureText = false,
+  });
+
+  final String initialValue;
+  final String labelText;
+  final String hintText;
+  final ValueChanged<String> onCommit;
+  final TextInputType? keyboardType;
+  final bool obscureText;
+
+  @override
+  State<_SettingsTextField> createState() => _SettingsTextFieldState();
+}
+
+class _SettingsTextFieldState extends State<_SettingsTextField> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialValue,
+  );
+  late bool _obscure = widget.obscureText;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      obscureText: _obscure,
+      keyboardType: widget.keyboardType,
+      decoration: InputDecoration(
+        labelText: widget.labelText,
+        hintText: widget.hintText,
+        border: const OutlineInputBorder(),
+        suffixIcon: widget.obscureText
+            ? IconButton(
+                icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+                onPressed: () => setState(() => _obscure = !_obscure),
+              )
+            : null,
+      ),
+      onEditingComplete: () => widget.onCommit(_controller.text),
     );
   }
 }

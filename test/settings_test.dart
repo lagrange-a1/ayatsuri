@@ -28,6 +28,8 @@ void main() {
       compactNodeList: true,
       backgroundOpacity: 0.4,
       locale: AppLocale.zh,
+      serverUrl: 'http://192.168.0.2:9091',
+      secret: 'foobar',
     );
     final restored = AppSettings.fromJson(
       jsonDecode(jsonEncode(original.toJson())) as Map<String, dynamic>,
@@ -47,6 +49,8 @@ void main() {
     expect(restored.compactNodeList, isTrue);
     expect(restored.backgroundOpacity, 0.4);
     expect(restored.locale, AppLocale.zh);
+    expect(restored.serverUrl, 'http://192.168.0.2:9091');
+    expect(restored.secret, 'foobar');
     expect(restored.locale.flutterLocale, const Locale('zh'));
   });
 
@@ -90,12 +94,20 @@ void main() {
       ),
     );
     expect(find.text('Appearance'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Background'), 200);
-    expect(find.text('Background'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Globe'), 200);
-    expect(find.text('Globe'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Node probe'), 200);
-    expect(find.text('Node probe'), findsOneWidget);
+    // TextFields carry their own internal Scrollables, so
+    // scrollUntilVisible's default byType(Scrollable) lookup would find
+    // several; drag the list directly instead.
+    Future<void> scrollTo(String text) async {
+      for (var i = 0; i < 10 && find.text(text).evaluate().isEmpty; i++) {
+        await tester.drag(find.byType(ListView).first, const Offset(0, -200));
+        await tester.pumpAndSettle();
+      }
+      expect(find.text(text), findsOneWidget);
+    }
+
+    await scrollTo('Background');
+    await scrollTo('Globe');
+    await scrollTo('Node probe');
     await tester.drag(find.byType(ListView), const Offset(0, 2000));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Dark').first);

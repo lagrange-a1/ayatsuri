@@ -362,6 +362,36 @@ abstract class AppLocalizations {
   /// **'Text size'**
   String get textSize;
 
+  /// No description provided for @connection.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection'**
+  String get connection;
+
+  /// No description provided for @serverUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Server URL'**
+  String get serverUrl;
+
+  /// No description provided for @serverUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'http://localhost:9091'**
+  String get serverUrlHint;
+
+  /// No description provided for @secret.
+  ///
+  /// In en, this message translates to:
+  /// **'Secret'**
+  String get secret;
+
+  /// No description provided for @secretHint.
+  ///
+  /// In en, this message translates to:
+  /// **'foobar'**
+  String get secretHint;
+
   /// No description provided for @background.
   ///
   /// In en, this message translates to:

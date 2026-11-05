@@ -118,7 +118,7 @@ Map<String, dynamic> _normalize(Map<String, dynamic> j) {
   for (final key in ['pureBlack', 'autoRotate', 'hideBlocked', 'compact']) {
     m[key] = m[key] == true;
   }
-  for (final key in ['bg', 'bgPath']) {
+  for (final key in ['bg', 'bgPath', 'serverUrl', 'secret']) {
     if (m[key] != null && m[key] is! String) m[key] = null;
   }
   return m;
@@ -136,6 +136,14 @@ abstract class AppSettings with _$AppSettings {
     @Default(DynamicSchemeVariant.content)
     DynamicSchemeVariant schemeVariant,
     @Default(1.0) double textScale,
+
+    /// Mihomo external-controller API base URL (e.g. `http://localhost:9091`);
+    /// null falls back to the `.env` host/port.
+    @JsonKey(name: 'serverUrl') String? serverUrl,
+
+    /// Bearer secret for the controller; null falls back to `.env` `secret`.
+    @JsonKey(name: 'secret') String? secret,
+
     @JsonKey(name: 'bg') String? backgroundBase64,
 
     /// File-system path of the persisted background image (native only).

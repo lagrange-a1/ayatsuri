@@ -155,6 +155,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get textSize => '文字大小';
 
   @override
+  String get connection => '连接';
+
+  @override
+  String get serverUrl => '服务器地址';
+
+  @override
+  String get serverUrlHint => 'http://localhost:9091';
+
+  @override
+  String get secret => '密钥';
+
+  @override
+  String get secretHint => 'foobar';
+
+  @override
   String get background => '背景';
 
   @override

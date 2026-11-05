@@ -155,6 +155,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get textSize => 'Text size';
 
   @override
+  String get connection => 'Connection';
+
+  @override
+  String get serverUrl => 'Server URL';
+
+  @override
+  String get serverUrlHint => 'http://localhost:9091';
+
+  @override
+  String get secret => 'Secret';
+
+  @override
+  String get secretHint => 'foobar';
+
+  @override
   String get background => 'Background';
 
   @override
