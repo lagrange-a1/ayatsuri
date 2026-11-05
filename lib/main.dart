@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:re_highlight/languages/json.dart';
+import 'package:re_highlight/re_highlight.dart';
+
 import 'package:ayatsuri/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -382,69 +385,73 @@ class _JsonView extends StatefulWidget {
 }
 
 class _JsonViewState extends State<_JsonView> {
-  static const _kIndent = '  ';
+  static final Highlight _highlighter = Highlight()
+    ..registerLanguages({'json': langJson});
 
-  String _pretty(Map<String, dynamic> json, {int depth = 0}) {
-    final pad = _kIndent * depth;
-    final buf = StringBuffer('{\n');
-    final entries = json.entries.toList();
-    for (var i = 0; i < entries.length; i++) {
-      final e = entries[i];
-      buf.writeln('$pad  "${e.key}": ${_prettyValue(e.value, depth + 1)}');
-      if (i < entries.length - 1) buf.write(',');
-      buf.writeln();
-    }
-    buf.write('$pad}');
-    return buf.toString();
+  // Standard pretty JSON (commas terminate the preceding line) via
+  // jsonEncode with indent; the old hand-rolled printer wrote ',' after
+  // writeln() so commas started the next line.
+  static String prettyJson(Map<String, dynamic> json) =>
+      const JsonEncoder.withIndent('  ').convert(json);
+
+  // bat-style palette derived from the app ColorScheme: keys, strings,
+  // numbers, literals (true/false/null) and punctuation each get a
+  // distinct color. re_highlight's JSON grammar emits classes: attr,
+  // string, number, literal, punctuation.
+  static Map<String, TextStyle> _batTheme(ColorScheme scheme) {
+    final base = TextStyle(
+      fontFamily: 'monospace',
+      fontSize: 12,
+      color: scheme.onSurfaceVariant,
+    );
+    return {
+      'attr': base.copyWith(color: scheme.primary, fontWeight: FontWeight.w600),
+      'string': base.copyWith(color: scheme.secondary),
+      'number': base.copyWith(color: scheme.tertiary),
+      // re_highlight's keyword matcher may report the class as 'keyword'
+      // instead of 'literal'; cover both so true/false/null highlight.
+      'literal': base.copyWith(
+        color: scheme.error,
+        fontWeight: FontWeight.w600,
+      ),
+      'keyword': base.copyWith(
+        color: scheme.error,
+        fontWeight: FontWeight.w600,
+      ),
+      'punctuation': base.copyWith(color: scheme.onSurfaceVariant),
+    };
   }
 
-  String _prettyValue(dynamic v, int depth) {
-    final pad = _kIndent * depth;
-    if (v is Map<String, dynamic>) {
-      if (v.isEmpty) return '{}';
-      final buf = StringBuffer('{\n');
-      final entries = v.entries.toList();
-      for (var i = 0; i < entries.length; i++) {
-        final e = entries[i];
-        buf.writeln('$pad  "${e.key}": ${_prettyValue(e.value, depth + 1)}');
-        if (i < entries.length - 1) buf.write(',');
-        buf.writeln();
-      }
-      buf.write('$pad}');
-      return buf.toString();
-    }
-    if (v is List) {
-      if (v.isEmpty) return '[]';
-      final buf = StringBuffer('[\n');
-      for (var i = 0; i < v.length; i++) {
-        buf.writeln('$pad  ${_prettyValue(v[i], depth + 1)}');
-        if (i < v.length - 1) buf.write(',');
-        buf.writeln();
-      }
-      buf.write('$pad]');
-      return buf.toString();
-    }
-    if (v is String) return jsonEncode(v);
-    if (v is bool) return v.toString();
-    if (v is num) return v.toString();
-    if (v == null) return 'null';
-    return jsonEncode(v.toString());
+  TextSpan _highlight(String code, ColorScheme scheme) {
+    final result = _highlighter.highlight(code: code, language: 'json');
+    final renderer = TextSpanRenderer(
+      TextStyle(
+        fontFamily: 'monospace',
+        fontSize: 12,
+        color: scheme.onSurfaceVariant,
+      ),
+      _batTheme(scheme),
+    );
+    result.render(renderer);
+    return renderer.span ??
+        TextSpan(
+          text: code,
+          style: TextStyle(
+            fontFamily: 'monospace',
+            fontSize: 12,
+            color: scheme.onSurfaceVariant,
+          ),
+        );
   }
 
   @override
   Widget build(BuildContext context) {
-    final text = _pretty(widget.data);
+    final scheme = Theme.of(context).colorScheme;
+    final span = _highlight(prettyJson(widget.data), scheme);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: SelectableText(
-        text,
-        style: TextStyle(
-          fontFamily: 'monospace',
-          fontSize: 12,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      ),
+      child: SelectableText.rich(span),
     );
   }
 }
