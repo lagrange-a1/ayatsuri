@@ -19,4 +19,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
+      # .env is a gitignored asset; without a placeholder the analyzer
+      # warns (asset_does_not_exist) and --fatal-warnings fails the hook.
+      - name: Ensure .env exists (gitignored asset)
+        run: |
+          if [ ! -f .env ]; then echo '# placeholder for CI analyze' > .env; fi
       - uses: pre-commit/action@v3.0.1
