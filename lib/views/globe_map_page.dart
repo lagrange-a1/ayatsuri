@@ -26,10 +26,10 @@ import 'package:flutter_earth_globe/point.dart';
 
 import '../endpoints.dart';
 import '../proxies/country_map.dart';
-import '../proxies/geo_hit_test.dart';
+import '../proxies/country_shapes.dart';
 import '../proxies/proxy_service.dart';
 import '../settings/app_settings.dart';
-import '../test_env.dart';
+import '../platform/test_guard.dart';
 
 class GlobeMapPage extends StatefulWidget {
   const GlobeMapPage({super.key, required this.api, this.settingsController});

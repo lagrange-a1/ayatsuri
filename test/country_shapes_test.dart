@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:ayatsuri/proxies/geo_hit_test.dart';
+import 'package:ayatsuri/proxies/country_shapes.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A square "country" XX spanning lng [170, 190] (crossing the
