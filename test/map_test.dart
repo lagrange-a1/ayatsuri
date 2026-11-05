@@ -50,4 +50,41 @@ void main() {
       expect(countryAlpha2FromMapId(e.value.alpha3), e.key);
     }
   });
+
+  test('globe feature -> alpha2 (incl. Natural Earth -99 exceptions)', () {
+    expect(
+      alpha2ForGlobeFeature(isoA2: 'US', name: 'United States of America'),
+      'US',
+    );
+    expect(alpha2ForGlobeFeature(isoA2: '-99', name: 'France'), 'FR');
+    expect(alpha2ForGlobeFeature(isoA2: '-99', name: 'Norway'), 'NO');
+    expect(alpha2ForGlobeFeature(isoA2: '-99', name: 'Northern Cyprus'), 'CY');
+    expect(alpha2ForGlobeFeature(isoA2: '-99', name: 'Somaliland'), 'SO');
+  });
+
+  test('old X_ map ids resolve now that the table covers them', () {
+    expect(countryAlpha2FromMapId('X_NOR'), 'NO');
+    expect(countryAlpha2FromMapId('X_FRA'), 'FR');
+  });
+
+  test('previously missing countries resolve from proxy names', () {
+    expect(nameToFrontAlpha2('🇳🇴 挪威 | NOR 1'), 'NO');
+    expect(nameToFrontAlpha2('🇵🇹 葡萄牙 | POR'), 'PT');
+    expect(nameToFrontAlpha2('🇹🇭 泰国 | THA 2'), 'TH');
+    expect(nameToFrontAlpha2('🇲🇾 马来西亚 | MYS'), 'MY');
+    expect(nameToFrontAlpha2('Norway 1'), 'NO');
+  });
+
+  test('flagForAlpha2 builds regional indicators', () {
+    expect(flagForAlpha2('HK'), '🇭🇰');
+    expect(flagForAlpha2('us'), '🇺🇸');
+    expect(flagForAlpha2(''), '');
+  });
+
+  test('table covers the bundled GeoJSON country set', () {
+    // Natural Earth 110m ships 177 features; the table must not shrink
+    // below the tappable polygon count again (the old 30-country table
+    // made every other country invisible on the map).
+    expect(kCountries.length, greaterThanOrEqualTo(170));
+  });
 }

@@ -66,6 +66,7 @@ class ProxySelection {
   String? error;
 
   Map<String, ProxyItem> get proxies => _proxies ?? <String, ProxyItem>{};
+  bool get loaded => _proxies != null;
   List<GroupItem> get selectors =>
       (_groups ?? []).where((group) => group.isSelector).toList();
 

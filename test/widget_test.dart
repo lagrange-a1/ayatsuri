@@ -7,18 +7,19 @@ import 'package:ayatsuri/main.dart';
 void main() async {
   // `main()` is not called by the widget test, so dotenv must be loaded
   // inside the test body (the binding already exists there).
-  testWidgets('App has a map page and a bottom navigation bar', (
+  testWidgets('App has a globe page and a bottom navigation bar', (
     WidgetTester tester,
   ) async {
     await dotenv.load();
     // Build our app and trigger a frame.
     await tester.pumpWidget(const MyApp());
 
-    // The map page is now the home tab; it fetches proxies and groups on
-    // startup (the requests are fire-and-forget, so the first frame is still
-    // empty).
-    expect(find.text('Select a node · World Map'), findsOneWidget);
-    expect(find.text('Tap a country on the map.'), findsOneWidget);
+    // The globe page is now the home tab; it fetches proxies and groups on
+    // startup. In widget tests there is no WebView platform implementation,
+    // so the page renders its placeholder instead of the real WebView.
+    expect(find.text('Select a node · Globe'), findsOneWidget);
+    expect(find.text('Globe (3D unavailable in tests)'), findsOneWidget);
+    expect(find.text('Tap a country'), findsOneWidget);
     expect(find.byIcon(Icons.public), findsOneWidget);
     expect(find.byIcon(Icons.info), findsOneWidget);
 

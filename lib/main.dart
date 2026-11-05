@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'endpoints.dart';
-import 'views/proxy_map_page.dart';
+import 'views/globe_map_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,14 +44,14 @@ class _MihomoAppState extends State<MihomoApp> {
     _api = MihomoAPI();
   }
 
-  /// The map page is the home tab; both pages auto-fetch controller state when
-  /// they are first built (startup), so the visible page is always fresh.
-  List<Widget> get pages => [ProxyMapPage(api: _api), MihomoInfo(api: _api)];
+  /// The globe page is the home tab; both pages auto-fetch controller state
+  /// when they are first built (startup), so the visible page is fresh.
+  List<Widget> get pages => [GlobeMapPage(api: _api), MihomoInfo(api: _api)];
 
   List<BottomNavigationBarItem> get items => [
     BottomNavigationBarItem(
       icon: const Icon(Icons.public, size: 28),
-      label: 'Map',
+      label: 'Globe',
     ),
     const BottomNavigationBarItem(
       icon: Icon(Icons.info, size: 28),

@@ -42,7 +42,10 @@ void main() {
     // The countries the running config actually exposes; keep the empty-table
     // path for countries with no nodes at all (no crash).
     expect(candidates.keys.isNotEmpty, isTrue);
-    for (final absent in ['NO', 'PT', 'ZZ']) {
+    // NO/PT used to be unresolvable (missing from the country table); with
+    // the full table they may now legitimately have candidates, so only a
+    // made-up code is guaranteed absent.
+    for (final absent in ['ZZ']) {
       final cands = candidates[absent] ?? <ProxyCandidate>[];
       debugPrint('$absent -> ${cands.length} candidates');
       expect(cands.isEmpty, isTrue, reason: 'no node for $absent');
