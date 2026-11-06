@@ -126,3 +126,4 @@ screenshots/
 
 # Kotlin daemon / incremental build state (random-named .salive lock files)
 **/.kotlin/
+*.keystore

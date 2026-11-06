@@ -34,8 +34,32 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Build APK (release, debug-signed)
-        # Split-per-ABI by default (smaller per-arch APKs, standard for
+      # Release signing: every tagged release must use the SAME keystore,
+      # otherwise phones with an older install reject the new APK
+      # (signature mismatch -> getPackageInfo null / cannot install).
+      # Required GitHub Secrets (one-time setup):
+      #   KEYSTORE_BASE64    base64 of the .jks/.keystore file
+      #   KEYSTORE_PASSWORD  keystore password
+      #   KEY_ALIAS          key alias inside the keystore
+      #   KEY_PASSWORD       key password (may equal KEYSTORE_PASSWORD)
+      - name: Set up release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            mkdir -p android/app
+            echo "$KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
+            echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/android/app/release.keystore" >> "$GITHUB_ENV"
+            echo "Release keystore written."
+          else
+            echo "::warning::No KEYSTORE_BASE64 secret: falling back to debug signing. Tagged (v*) builds will fail in Gradle on purpose."
+          fi
+
+      - name: Build APK (release, split-per-ABI)
+        env:
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: flutter build apk --release --split-per-abi
 
       - name: List outputs
