@@ -58,7 +58,7 @@ jobs:
       - name: Build APK (release, split-per-ABI)
         env:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: flutter build apk --release --split-per-abi
 
