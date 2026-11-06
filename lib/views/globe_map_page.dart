@@ -938,7 +938,7 @@ class _SheetEnter extends StatelessWidget {
           tween: Tween(begin: 0, end: 1),
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeOut,
-          builder: (_, t, c) => Opacity(opacity: t, child: c),
+          builder: (_, t, c) => Opacity(opacity: t.clamp(0.0, 1.0), child: c),
           child: child,
         );
       case SheetAnimation.scale:
@@ -997,18 +997,22 @@ class _StaggerCard extends StatelessWidget {
           1.0,
         );
         final t = curve.transform(p);
+        // Overshoot curves (easeOutBack/elasticOut) exceed 1.0, which
+        // Opacity asserts against — so opacity gets its own clamped,
+        // non-overshooting progress and only scale uses the overshoot.
+        final faded = Curves.easeOut.transform(p).clamp(0.0, 1.0);
         Widget out = c!;
         switch (animation) {
           case SheetAnimation.fade:
-            out = Opacity(opacity: t, child: out);
+            out = Opacity(opacity: faded, child: out);
           case SheetAnimation.scale:
           case SheetAnimation.spring:
             out = Transform.scale(scale: 0.85 + 0.15 * t, child: out);
           case SheetAnimation.slide:
             out = Opacity(
-              opacity: t,
+              opacity: faded,
               child: Transform.translate(
-                offset: Offset(0, 16 * (1 - t)),
+                offset: Offset(0, 16 * (1 - faded)),
                 child: out,
               ),
             );
