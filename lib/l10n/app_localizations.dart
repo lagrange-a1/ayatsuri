@@ -218,6 +218,150 @@ abstract class AppLocalizations {
   /// **'Logs'**
   String get sectionLogs;
 
+  /// No description provided for @summaryVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get summaryVersion;
+
+  /// No description provided for @summaryGoVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Go version'**
+  String get summaryGoVersion;
+
+  /// No description provided for @summaryMeta.
+  ///
+  /// In en, this message translates to:
+  /// **'Meta build'**
+  String get summaryMeta;
+
+  /// No description provided for @summaryPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get summaryPreview;
+
+  /// No description provided for @summaryProxyCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Proxies'**
+  String get summaryProxyCount;
+
+  /// No description provided for @summaryGroupCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups'**
+  String get summaryGroupCount;
+
+  /// No description provided for @summaryRuleCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Rules'**
+  String get summaryRuleCount;
+
+  /// No description provided for @summaryConnectionCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Connections'**
+  String get summaryConnectionCount;
+
+  /// No description provided for @summaryMemoryInUse.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory in use'**
+  String get summaryMemoryInUse;
+
+  /// No description provided for @summaryTrafficUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Up'**
+  String get summaryTrafficUp;
+
+  /// No description provided for @summaryTrafficDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Down'**
+  String get summaryTrafficDown;
+
+  /// No description provided for @summaryLogCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Log entries'**
+  String get summaryLogCount;
+
+  /// No description provided for @summaryMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Mode'**
+  String get summaryMode;
+
+  /// No description provided for @summaryLogLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Log level'**
+  String get summaryLogLevel;
+
+  /// No description provided for @summaryAllowLan.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow LAN'**
+  String get summaryAllowLan;
+
+  /// No description provided for @summaryMixedPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Mixed port'**
+  String get summaryMixedPort;
+
+  /// No description provided for @summarySocksPort.
+  ///
+  /// In en, this message translates to:
+  /// **'SOCKS port'**
+  String get summarySocksPort;
+
+  /// No description provided for @summaryHttpPort.
+  ///
+  /// In en, this message translates to:
+  /// **'HTTP port'**
+  String get summaryHttpPort;
+
+  /// No description provided for @summaryPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Port'**
+  String get summaryPort;
+
+  /// No description provided for @summaryTunEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'TUN enabled'**
+  String get summaryTunEnable;
+
+  /// No description provided for @summaryIPv6.
+  ///
+  /// In en, this message translates to:
+  /// **'IPv6'**
+  String get summaryIPv6;
+
+  /// No description provided for @summaryDnsAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'DNS address'**
+  String get summaryDnsAddress;
+
+  /// No description provided for @summarySystemProxy.
+  ///
+  /// In en, this message translates to:
+  /// **'System proxy'**
+  String get summarySystemProxy;
+
+  /// No description provided for @summaryLastUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Last fetched'**
+  String get summaryLastUpdated;
+
   /// No description provided for @globeTitle.
   ///
   /// In en, this message translates to:

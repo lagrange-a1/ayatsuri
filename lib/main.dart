@@ -1,18 +1,16 @@
-import 'dart:convert';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:re_highlight/languages/json.dart';
-import 'package:re_highlight/re_highlight.dart';
 
 import 'package:ayatsuri/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'endpoints.dart';
+import 'info/mihomo_info.dart';
 import 'settings/app_settings.dart';
 import 'settings/settings_page.dart';
 import 'views/globe_map_page.dart';
+import 'views/info_dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -255,23 +253,6 @@ class _MihomoInfoState extends State<MihomoInfo> {
     return buf.toString().trim();
   }
 
-  // ── Builders ────────────────────────────────────────────────────────
-
-  Widget _section(String title, Map<String, dynamic>? data) {
-    if (data == null) return const SizedBox();
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: ExpansionTile(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        trailing: Icon(
-          data.isEmpty ? Icons.info_outline : Icons.expand_more,
-          size: 20,
-        ),
-        children: [_JsonView(data: data)],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -366,106 +347,30 @@ class _MihomoInfoState extends State<MihomoInfo> {
                 ],
               ),
             )
-          : ListView(
-              padding: const EdgeInsets.all(12),
-              children: [
-                for (final (title, data) in <(String, Map<String, dynamic>?)>[
-                  (l10n.sectionVersion, _version),
-                  (l10n.sectionConfigs, _configs),
-                  (l10n.sectionProxies, _proxies),
-                  (l10n.sectionGroups, _groups),
-                  (l10n.sectionRules, _rules),
-                  (l10n.sectionConnections, _connections),
-                  (l10n.sectionTraffic, _traffic),
-                  (l10n.sectionMemory, _memory),
-                  (l10n.sectionLogs, _logs),
-                ])
-                  _section(title, data),
-              ],
+          : InfoDashboard(
+              summary: MihomoInfoSummary.fromAll(
+                version: _version,
+                configs: _configs,
+                proxies: _proxies,
+                group: _groups,
+                rules: _rules,
+                connections: _connections,
+                traffic: _traffic,
+                memory: _memory,
+                logs: _logs,
+              ),
+              rawBySection: {
+                'version': _version,
+                'configs': _configs,
+                'proxies': _proxies,
+                'groups': _groups,
+                'rules': _rules,
+                'connections': _connections,
+                'traffic': _traffic,
+                'memory': _memory,
+                'logs': _logs,
+              },
             ),
-    );
-  }
-}
-
-// ── Pretty JSON tree ────────────────────────────────────────────────────
-
-class _JsonView extends StatefulWidget {
-  const _JsonView({required this.data});
-
-  final Map<String, dynamic> data;
-
-  @override
-  State<_JsonView> createState() => _JsonViewState();
-}
-
-class _JsonViewState extends State<_JsonView> {
-  static final Highlight _highlighter = Highlight()
-    ..registerLanguages({'json': langJson});
-
-  // Standard pretty JSON (commas terminate the preceding line) via
-  // jsonEncode with indent; the old hand-rolled printer wrote ',' after
-  // writeln() so commas started the next line.
-  static String prettyJson(Map<String, dynamic> json) =>
-      const JsonEncoder.withIndent('  ').convert(json);
-
-  // bat-style palette derived from the app ColorScheme: keys, strings,
-  // numbers, literals (true/false/null) and punctuation each get a
-  // distinct color. re_highlight's JSON grammar emits classes: attr,
-  // string, number, literal, punctuation.
-  static Map<String, TextStyle> _batTheme(ColorScheme scheme) {
-    final base = TextStyle(
-      fontFamily: 'monospace',
-      fontSize: 12,
-      color: scheme.onSurfaceVariant,
-    );
-    return {
-      'attr': base.copyWith(color: scheme.primary, fontWeight: FontWeight.w600),
-      'string': base.copyWith(color: scheme.secondary),
-      'number': base.copyWith(color: scheme.tertiary),
-      // re_highlight's keyword matcher may report the class as 'keyword'
-      // instead of 'literal'; cover both so true/false/null highlight.
-      'literal': base.copyWith(
-        color: scheme.error,
-        fontWeight: FontWeight.w600,
-      ),
-      'keyword': base.copyWith(
-        color: scheme.error,
-        fontWeight: FontWeight.w600,
-      ),
-      'punctuation': base.copyWith(color: scheme.onSurfaceVariant),
-    };
-  }
-
-  TextSpan _highlight(String code, ColorScheme scheme) {
-    final result = _highlighter.highlight(code: code, language: 'json');
-    final renderer = TextSpanRenderer(
-      TextStyle(
-        fontFamily: 'monospace',
-        fontSize: 12,
-        color: scheme.onSurfaceVariant,
-      ),
-      _batTheme(scheme),
-    );
-    result.render(renderer);
-    return renderer.span ??
-        TextSpan(
-          text: code,
-          style: TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 12,
-            color: scheme.onSurfaceVariant,
-          ),
-        );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final span = _highlight(prettyJson(widget.data), scheme);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: SelectableText.rich(span),
     );
   }
 }

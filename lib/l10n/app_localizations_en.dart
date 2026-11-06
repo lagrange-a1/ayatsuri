@@ -69,6 +69,78 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sectionLogs => 'Logs';
 
   @override
+  String get summaryVersion => 'Version';
+
+  @override
+  String get summaryGoVersion => 'Go version';
+
+  @override
+  String get summaryMeta => 'Meta build';
+
+  @override
+  String get summaryPreview => 'Preview';
+
+  @override
+  String get summaryProxyCount => 'Proxies';
+
+  @override
+  String get summaryGroupCount => 'Groups';
+
+  @override
+  String get summaryRuleCount => 'Rules';
+
+  @override
+  String get summaryConnectionCount => 'Connections';
+
+  @override
+  String get summaryMemoryInUse => 'Memory in use';
+
+  @override
+  String get summaryTrafficUp => 'Up';
+
+  @override
+  String get summaryTrafficDown => 'Down';
+
+  @override
+  String get summaryLogCount => 'Log entries';
+
+  @override
+  String get summaryMode => 'Mode';
+
+  @override
+  String get summaryLogLevel => 'Log level';
+
+  @override
+  String get summaryAllowLan => 'Allow LAN';
+
+  @override
+  String get summaryMixedPort => 'Mixed port';
+
+  @override
+  String get summarySocksPort => 'SOCKS port';
+
+  @override
+  String get summaryHttpPort => 'HTTP port';
+
+  @override
+  String get summaryPort => 'Port';
+
+  @override
+  String get summaryTunEnable => 'TUN enabled';
+
+  @override
+  String get summaryIPv6 => 'IPv6';
+
+  @override
+  String get summaryDnsAddress => 'DNS address';
+
+  @override
+  String get summarySystemProxy => 'System proxy';
+
+  @override
+  String get summaryLastUpdated => 'Last fetched';
+
+  @override
   String get globeTitle => 'Select a node · Globe';
 
   @override

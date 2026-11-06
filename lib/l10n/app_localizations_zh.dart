@@ -69,6 +69,78 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sectionLogs => '日志';
 
   @override
+  String get summaryVersion => '版本';
+
+  @override
+  String get summaryGoVersion => 'Go 版本';
+
+  @override
+  String get summaryMeta => 'Meta 构建';
+
+  @override
+  String get summaryPreview => '预览版';
+
+  @override
+  String get summaryProxyCount => '代理数量';
+
+  @override
+  String get summaryGroupCount => '策略组数量';
+
+  @override
+  String get summaryRuleCount => '规则数量';
+
+  @override
+  String get summaryConnectionCount => '连接数量';
+
+  @override
+  String get summaryMemoryInUse => '已用内存';
+
+  @override
+  String get summaryTrafficUp => '上行';
+
+  @override
+  String get summaryTrafficDown => '下行';
+
+  @override
+  String get summaryLogCount => '日志条数';
+
+  @override
+  String get summaryMode => '模式';
+
+  @override
+  String get summaryLogLevel => '日志级别';
+
+  @override
+  String get summaryAllowLan => '允许局域网';
+
+  @override
+  String get summaryMixedPort => '混合端口';
+
+  @override
+  String get summarySocksPort => 'SOCKS 端口';
+
+  @override
+  String get summaryHttpPort => 'HTTP 端口';
+
+  @override
+  String get summaryPort => '端口';
+
+  @override
+  String get summaryTunEnable => '已启用 TUN';
+
+  @override
+  String get summaryIPv6 => 'IPv6';
+
+  @override
+  String get summaryDnsAddress => 'DNS 地址';
+
+  @override
+  String get summarySystemProxy => '系统代理';
+
+  @override
+  String get summaryLastUpdated => '上次获取时间';
+
+  @override
   String get globeTitle => '选择节点 · 地球';
 
   @override
