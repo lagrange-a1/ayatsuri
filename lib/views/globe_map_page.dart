@@ -407,13 +407,15 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
             color: selected ? const Color(0xFFC084FC) : const Color(0xFF38BDF8),
             // Quadratic so the 0.5x-2x slider range is clearly visible
             // (linear 3px*scale is only a few pixels on screen), divided
-            // by the zoom factor so markers shrink as you zoom in and
-            // grow as you zoom out (relative to the base zoom).
+            // by the zoom factor squared so markers actually shrink on
+            // screen as you zoom in: the package itself multiplies point
+            // size by 2^zoom, so a single division would only keep the
+            // screen size constant. Relative to the base zoom.
             size:
                 (selected ? 8 : 4) *
                 _s.markerScale *
                 _s.markerScale /
-                math.pow(2, _currentZoom - _baseZoom),
+                math.pow(2, 2 * (_currentZoom - _baseZoom)),
           ),
           onTap: () => _onCountry(alpha2),
         ),
