@@ -203,17 +203,14 @@ class MihomoAPI {
   }
 
   void _init(String? url, String? token) {
-    // flutter_dotenv is load-once and async: the un-awaited `dotenv.load()`
-    // fallback that used to live here raced with `main()`'s awaited load
-    // and could read an empty env. Fail fast in debug instead; `main()`
-    // (and tests) must initialize dotenv before constructing MihomoAPI —
-    // `await dotenv.load()` in main(), or `dotenv.loadFromString(...)`
-    // in tests (`.env` is no longer a bundled pubspec asset).
-    assert(
-      dotenv.isInitialized,
-      'dotenv not initialized: await dotenv.load() in main() before '
-      'constructing MihomoAPI',
-    );
+    // flutter_dotenv is load-once and async. `.env` is a dev-only,
+    // optional fallback and is no longer a bundled pubspec asset, so on a
+    // normal `flutter run` there may be no .env at all — `main()` loads
+    // it with `isOptional: true`, and when dotenv was never initialized
+    // (e.g. a test forgets `loadFromString`) we simply fall back to an
+    // empty env (dart-define / explicit args / localhost:9091 defaults).
+    // Do NOT assert `dotenv.isInitialized` here: that crashes debug runs
+    // whenever .env is absent, which is the common case.
     final env = dotenv.isInitialized ? dotenv.env : const <String, String>{};
     final trimmed = url?.trim();
     final host = _dartHost.isNotEmpty

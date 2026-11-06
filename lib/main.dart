@@ -14,10 +14,20 @@ import 'views/info_dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // .env is a dev-only fallback and is no longer bundled as a pubspec
+  // asset, so on a normal `flutter run` the file is absent from the asset
+  // bundle and `dotenv.load()` would throw. Ask for an optional load so a
+  // missing .env simply yields an empty env (defaults apply) instead of
+  // leaving dotenv uninitialized and tripping the guard in MihomoAPI.
+  // The catch is a last resort for other load failures (e.g. a corrupt
+  // .env): initialize an empty env so MihomoAPI never sees an
+  // uninitialized dotenv.
   try {
-    await dotenv.load();
+    await dotenv.load(isOptional: true);
   } catch (_) {
-    // .env is not bundled (dev-only asset); fall back to defaults.
+    // Unexpected load failure (e.g. a corrupt .env): initialize an empty
+    // env so MihomoAPI never sees an uninitialized dotenv.
+    dotenv.loadFromString(isOptional: true);
   }
   final settingsController = AppSettingsController();
   await settingsController.load();
