@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ayatsuri/proxies/country_map.dart';
+import 'package:ayatsuri/proxies/country_names.dart';
 
 void main() {
   test('map id -> alpha-2', () {
@@ -73,6 +74,23 @@ void main() {
     expect(nameToFrontAlpha2('🇹🇭 泰国 | THA 2'), 'TH');
     expect(nameToFrontAlpha2('🇲🇾 马来西亚 | MYS'), 'MY');
     expect(nameToFrontAlpha2('Norway 1'), 'NO');
+  });
+
+  test('display names are localized for every table country', () {
+    for (final alpha2 in kCountries.keys) {
+      final zh = countryDisplayName(alpha2, chinese: true);
+      final en = countryDisplayName(alpha2, chinese: false);
+      expect(zh, isNotEmpty, reason: alpha2);
+      expect(zh, isNot(alpha2), reason: alpha2);
+      expect(en, isNotEmpty, reason: alpha2);
+      expect(en, isNot(alpha2), reason: alpha2);
+    }
+    // Previously English-only entries now have Chinese names.
+    expect(countryDisplayName('LK', chinese: true), '斯里兰卡');
+    expect(countryDisplayName('LK', chinese: false), 'Sri Lanka');
+    expect(countryDisplayName('TW', chinese: true), '台湾');
+    // Unknown codes fall back to the code itself.
+    expect(countryDisplayName('XX', chinese: true), 'XX');
   });
 
   test('flagForAlpha2 builds regional indicators', () {

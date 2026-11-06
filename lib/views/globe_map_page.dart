@@ -26,6 +26,7 @@ import 'package:flutter_earth_globe/point.dart';
 
 import '../endpoints.dart';
 import '../proxies/country_map.dart';
+import '../proxies/country_names.dart';
 import '../proxies/country_shapes.dart';
 import '../proxies/proxy_service.dart';
 import '../settings/app_settings.dart';
@@ -65,6 +66,11 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
   AppSettingsController _settings = AppSettingsController();
 
   AppSettings get _s => _settings.settings;
+
+  bool get _isChinese => Localizations.localeOf(context).languageCode == 'zh';
+
+  String _displayName(String alpha2) =>
+      countryDisplayName(alpha2, chinese: _isChinese);
 
   /// In widget tests the globe's shader/texture pipeline is unavailable;
   /// render a placeholder instead.
@@ -327,7 +333,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
         Point(
           id: id,
           coordinates: GlobeCoordinates(centroid.$1, centroid.$2),
-          label: selected ? (kCountries[alpha2]?.name ?? alpha2) : null,
+          label: selected ? _displayName(alpha2) : null,
           isLabelVisible: selected,
           style: PointStyle(
             color: selected ? const Color(0xFFC084FC) : const Color(0xFF38BDF8),
@@ -428,7 +434,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
           titlePattern == null
               ? l10n.globeTitle
               : '${l10n.globeTitle} (${l10n.currentNode}: '
-                    '${titlePattern.flag} ${titlePattern.name})',
+                    '${titlePattern.flag} ${_displayName(titleAlpha2!)})',
         ),
         actions: [
           IconButton(
@@ -495,10 +501,10 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
                     _selectedAlpha2 != null
                         ? l10n.selectedCountry(
                             selectedPattern?.flag ?? '',
-                            selectedPattern?.name ?? _selectedAlpha2!,
+                            _displayName(_selectedAlpha2!),
                           )
                         : hoverPattern != null
-                        ? '${hoverPattern.flag} ${hoverPattern.name}'
+                        ? '${hoverPattern.flag} ${_displayName(_hoverAlpha2!)}'
                         : l10n.tapCountry,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
@@ -838,7 +844,12 @@ class _CountrySheetState extends State<_CountrySheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          pattern?.name ?? widget.alpha2,
+                          countryDisplayName(
+                            widget.alpha2,
+                            chinese:
+                                Localizations.localeOf(context).languageCode ==
+                                'zh',
+                          ),
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         Text(
