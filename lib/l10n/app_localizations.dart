@@ -383,7 +383,7 @@ abstract class AppLocalizations {
   /// No description provided for @tapCountry.
   ///
   /// In en, this message translates to:
-  /// **'Tap a country'**
+  /// **'Tap a Country/Region'**
   String get tapCountry;
 
   /// No description provided for @selectedCountry.
@@ -425,7 +425,7 @@ abstract class AppLocalizations {
   /// No description provided for @noMatchingNode.
   ///
   /// In en, this message translates to:
-  /// **'No matching node for this country.'**
+  /// **'No matching node for this Country/Region.'**
   String get noMatchingNode;
 
   /// No description provided for @globeDataFailed.
