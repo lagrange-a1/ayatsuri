@@ -123,3 +123,6 @@ app.*.symbols
 
 # Verification screenshots (local evidence only, do not commit)
 screenshots/
+
+# Kotlin daemon / incremental build state (random-named .salive lock files)
+**/.kotlin/
