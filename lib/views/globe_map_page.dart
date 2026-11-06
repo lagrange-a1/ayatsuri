@@ -576,23 +576,39 @@ class _CountrySheetState extends State<_CountrySheet> {
   late List<ProxyCandidate> _candidates;
   int _generation = 0;
   String? _selecting;
+  String? _selectedGroupName;
 
   @override
   void initState() {
     super.initState();
     _candidates = widget.selection.candidatesForMapId(widget.alpha2);
+    _selectedGroupName = _defaultGroupName(_candidates);
     _probeAll();
+  }
+
+  /// Default protocol/class tab: the group whose `now` is in this country
+  /// (what the kernel is actually running), otherwise the first group.
+  String? _defaultGroupName(List<ProxyCandidate> candidates) {
+    for (final c in candidates) {
+      if (c.isNow) return c.group.name;
+    }
+    return candidates.isEmpty ? null : candidates.first.group.name;
   }
 
   void _probeAll() {
     final gen = ++_generation;
-    for (final candidate in _candidates) {
-      widget.selection.probeByName(candidate.proxy.name).then((_) {
+    // Same node often appears in several groups; probe each name once.
+    final names = _candidates.map((c) => c.proxy.name).toSet();
+    for (final name in names) {
+      widget.selection.probeByName(name).then((_) {
         if (!mounted || gen != _generation) return;
-        setState(
-          () =>
-              _candidates = widget.selection.candidatesForMapId(widget.alpha2),
-        );
+        setState(() {
+          _candidates = widget.selection.candidatesForMapId(widget.alpha2);
+          if (_selectedGroupName == null ||
+              !_candidates.any((c) => c.group.name == _selectedGroupName)) {
+            _selectedGroupName = _defaultGroupName(_candidates);
+          }
+        });
       });
     }
   }
@@ -620,13 +636,17 @@ class _CountrySheetState extends State<_CountrySheet> {
     setState(() {
       _selecting = null;
       _candidates = widget.selection.candidatesForMapId(widget.alpha2);
+      if (_selectedGroupName == null ||
+          !_candidates.any((c) => c.group.name == _selectedGroupName)) {
+        _selectedGroupName = _defaultGroupName(_candidates);
+      }
     });
     widget.onSelected(candidate.proxy.name, candidate.group.name);
     Navigator.of(context).pop();
   }
 
-  List<ProxyCandidate> get _visibleCandidates {
-    var list = _candidates.where((c) {
+  List<ProxyCandidate> _filterAndSort(List<ProxyCandidate> source) {
+    var list = source.where((c) {
       final d = c.proxy.delay;
       if (widget.hideBlocked && d == 0) return false;
       if (widget.maxDelayMs > 0 && d != null && d > widget.maxDelayMs) {
@@ -654,11 +674,127 @@ class _CountrySheetState extends State<_CountrySheet> {
     return list;
   }
 
+  /// Candidates grouped by class/group (A/B/C/D…), preserving the order
+  /// in which groups appear in the kernel config.
+  Map<String, List<ProxyCandidate>> get _visibleByGroup {
+    final map = <String, List<ProxyCandidate>>{};
+    for (final c in _filterAndSort(_candidates)) {
+      map.putIfAbsent(c.group.name, () => []).add(c);
+    }
+    return map;
+  }
+
+  Widget _buildNodeCard(
+    AppLocalizations l10n,
+    ProxyCandidate candidate,
+    ColorScheme scheme,
+  ) {
+    final delay = candidate.proxy.delay;
+    final color = delayColor(delay);
+    final selecting = _selecting == candidate.proxy.name;
+    return Material(
+      color: candidate.isNow
+          ? scheme.secondaryContainer
+          : scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: candidate.isNow ? scheme.primary : scheme.outlineVariant,
+          width: candidate.isNow ? 1.5 : 1,
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: selecting ? null : () => _onTap(candidate),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      candidate.proxy.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (selecting)
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else if (candidate.isNow)
+                    const Icon(
+                      Icons.check_circle,
+                      size: 16,
+                      color: Colors.green,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text(
+                    delayLabel(l10n, delay),
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: delay == kDelayTimeout
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
+                  const Spacer(),
+                  Flexible(
+                    child: Text(
+                      candidate.proxy.type,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final pattern = kCountries[widget.alpha2];
-    final visible = _visibleCandidates;
+    final byGroup = _visibleByGroup;
+    // If filtering emptied the remembered tab, fall back to any group that
+    // still has nodes (first in config order) so the sheet never shows a
+    // blank tab while other classes are available.
+    final selectedGroup = byGroup.containsKey(_selectedGroupName)
+        ? _selectedGroupName
+        : (byGroup.isEmpty ? null : byGroup.keys.first);
+    final visible = selectedGroup == null
+        ? <ProxyCandidate>[]
+        : byGroup[selectedGroup]!;
     final scheme = Theme.of(context).colorScheme;
     final error = widget.selection.error;
     return ConstrainedBox(
@@ -701,6 +837,32 @@ class _CountrySheetState extends State<_CountrySheet> {
               ],
             ),
             const SizedBox(height: 8),
+            // Class/group tabs (A/B/C/D…): pick a class, then its nodes
+            // (1…9) are shown once below as cards — not repeated per group.
+            if (byGroup.length > 1) ...[
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: byGroup.entries.map((entry) {
+                    final selected = entry.key == selectedGroup;
+                    final hasNow = entry.value.any((c) => c.isNow);
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text('${entry.key} · ${entry.value.length}'),
+                        selected: selected,
+                        avatar: hasNow
+                            ? const Icon(Icons.check, size: 16)
+                            : null,
+                        onSelected: (_) =>
+                            setState(() => _selectedGroupName = entry.key),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             if (visible.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),
@@ -715,60 +877,20 @@ class _CountrySheetState extends State<_CountrySheet> {
               )
             else
               Flexible(
-                child: ListView(
+                child: GridView.builder(
                   shrinkWrap: true,
-                  children: visible.map((candidate) {
-                    final delay = candidate.proxy.delay;
-                    final color = delayColor(delay);
-                    return ListTile(
-                      visualDensity: widget.compact
-                          ? VisualDensity.compact
-                          : VisualDensity.standard,
-                      leading: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: color,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              candidate.proxy.name,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      title: Text(candidate.group.name),
-                      subtitle: Text(
-                        delayLabel(l10n, delay),
-                        style: TextStyle(
-                          color: color,
-                          fontWeight: delay == kDelayTimeout
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
-                      ),
-                      trailing: _selecting == candidate.proxy.name
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : candidate.isNow
-                          ? const Icon(Icons.check_circle, color: Colors.green)
-                          : null,
-                      tileColor: candidate.isNow
-                          ? scheme.secondaryContainer
-                          : null,
-                      onTap: () => _onTap(candidate),
-                    );
-                  }).toList(),
+                  padding: EdgeInsets.zero,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: MediaQuery.sizeOf(context).width >= 600
+                        ? 3
+                        : 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: widget.compact ? 2.6 : 2.1,
+                  ),
+                  itemCount: visible.length,
+                  itemBuilder: (context, i) =>
+                      _buildNodeCard(l10n, visible[i], scheme),
                 ),
               ),
           ],
