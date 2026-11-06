@@ -31,6 +31,6 @@ void main() async {
     // otherwise the framework complains about pending timers after the widget
     // tree is disposed.
     await tester.pumpAndSettle();
-    expect(find.text('ayatsuri · Mihomo Info'), findsOneWidget);
+    expect(find.text('Ayatsuri · Mihomo Info'), findsOneWidget);
   });
 }

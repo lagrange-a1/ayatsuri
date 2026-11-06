@@ -156,7 +156,16 @@ Map<String, dynamic> _normalize(Map<String, dynamic> j) {
 
   m['textScale'] = _clampNum(m['textScale'], 1.0, 0.85, 1.3);
   m['bgOpacity'] = _clampNum(m['bgOpacity'], 0.65, 0.0, 1.0);
-  m['markerScale'] = _clampNum(m['markerScale'], 1.0, 0.5, 2.0);
+  // Marker scale was rescaled: old range 0.5..1.0 maps proportionally
+  // onto the new range 0.5..2.0 (new = 0.5 + (old - 0.5) * 3), so the
+  // old default 0.7 becomes 1.1. Stored values already above the old
+  // max are left as-is (they are already on the new scale).
+  final rawMarker = _num(m['markerScale'], 0.7);
+  m['markerScale'] =
+      (rawMarker <= 1.0 ? 0.5 + (rawMarker - 0.5) * 3 : rawMarker).clamp(
+        0.5,
+        2.0,
+      );
   m['globeScale'] = _clampNum(m['globeScale'], 1.0, 0.7, 1.3);
   m['customLat'] = _clampNum(m['customLat'], 28, -90.0, 90.0);
   m['customLng'] = _clampNum(m['customLng'], 100, -180.0, 180.0);
@@ -209,7 +218,7 @@ abstract class AppSettings with _$AppSettings {
     @JsonKey(name: 'bgOpacity') @Default(0.65) double backgroundOpacity,
     @Default(false) bool autoRotate,
     @JsonKey(name: 'rotSpeed') @Default(0.01) double rotationSpeed,
-    @Default(1.0) double markerScale,
+    @Default(1.1) double markerScale,
     @Default(1.0) double globeScale,
     @Default(InitialView.auto) InitialView initialView,
     @Default(28) double customLat,

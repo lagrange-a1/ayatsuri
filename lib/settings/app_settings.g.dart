@@ -25,7 +25,7 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
   backgroundOpacity: (json['bgOpacity'] as num?)?.toDouble() ?? 0.65,
   autoRotate: json['autoRotate'] as bool? ?? false,
   rotationSpeed: (json['rotSpeed'] as num?)?.toDouble() ?? 0.01,
-  markerScale: (json['markerScale'] as num?)?.toDouble() ?? 1.0,
+  markerScale: (json['markerScale'] as num?)?.toDouble() ?? 1.1,
   globeScale: (json['globeScale'] as num?)?.toDouble() ?? 1.0,
   initialView:
       $enumDecodeNullable(_$InitialViewEnumMap, json['initialView']) ??

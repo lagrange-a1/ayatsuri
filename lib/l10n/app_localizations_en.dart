@@ -21,7 +21,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navSettings => 'Settings';
 
   @override
-  String get infoTitle => 'ayatsuri · Mihomo Info';
+  String get infoTitle => 'Ayatsuri · Mihomo Info';
 
   @override
   String get fetchAll => 'Fetch all';

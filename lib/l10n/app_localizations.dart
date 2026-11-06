@@ -125,7 +125,7 @@ abstract class AppLocalizations {
   /// No description provided for @infoTitle.
   ///
   /// In en, this message translates to:
-  /// **'ayatsuri · Mihomo Info'**
+  /// **'Ayatsuri · Mihomo Info'**
   String get infoTitle;
 
   /// No description provided for @fetchAll.

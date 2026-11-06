@@ -21,7 +21,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get navSettings => '设置';
 
   @override
-  String get infoTitle => 'ayatsuri · Mihomo 信息';
+  String get infoTitle => 'Ayatsuri · Mihomo 信息';
 
   @override
   String get fetchAll => '全部获取';
