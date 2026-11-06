@@ -375,6 +375,19 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
     }
   }
 
+  /// Style size for a marker point at the current zoom.
+  ///
+  /// On-screen size = style × package magnification (2^zoom). The
+  /// wanted on-screen factor relative to base zoom is 2^(-0.5·Δzoom),
+  /// clamped to [0.35, 2.0] so markers shrink gently on zoom-in but
+  /// never vanish at country-level zoom, and grow gently on zoom-out.
+  double _markerStyleSize(bool selected) {
+    final base = (selected ? 8 : 4) * _s.markerScale * _s.markerScale;
+    final delta = _currentZoom - _baseZoom;
+    final onScreenFactor = math.pow(2, -0.5 * delta).clamp(0.35, 2.0);
+    return base * onScreenFactor / math.pow(2, delta);
+  }
+
   /// Marker points for every country that has candidate nodes, plus a
   /// larger labeled point for the selected country.
   void _syncPoints() {
@@ -406,16 +419,15 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
           style: PointStyle(
             color: selected ? const Color(0xFFC084FC) : const Color(0xFF38BDF8),
             // Quadratic so the 0.5x-2x slider range is clearly visible
-            // (linear 3px*scale is only a few pixels on screen), divided
-            // by the zoom factor squared so markers actually shrink on
-            // screen as you zoom in: the package itself multiplies point
-            // size by 2^zoom, so a single division would only keep the
-            // screen size constant. Relative to the base zoom.
-            size:
-                (selected ? 8 : 4) *
-                _s.markerScale *
-                _s.markerScale /
-                math.pow(2, 2 * (_currentZoom - _baseZoom)),
+            // (linear 3px*scale is only a few pixels on screen).
+            //
+            // The package multiplies point size by 2^zoom on screen, so
+            // the style size must divide that magnification out and then
+            // apply the wanted on-screen shrink: half a binary step per
+            // zoom level (2^-0.5 per +1 zoom), floored at 35% and capped
+            // at 200% so markers stay visible at country-level zoom
+            // instead of collapsing to sub-pixel size.
+            size: _markerStyleSize(selected),
           ),
           onTap: () => _onCountry(alpha2),
         ),
