@@ -64,13 +64,38 @@ class ProxySelection {
 
   Map<String, ProxyItem>? _proxies;
   List<GroupItem>? _groups;
+
+  /// Config-order rank for groups, derived from the built-in aggregate
+  /// group's member list (see [_loadGroups]). Null when unavailable.
+  Map<String, int>? _groupRank;
   bool loading = false;
   String? error;
 
   Map<String, ProxyItem> get proxies => _proxies ?? <String, ProxyItem>{};
   bool get loaded => _proxies != null;
-  List<GroupItem> get selectors =>
-      (_groups ?? []).where((group) => group.isSelector).toList();
+
+  /// Selector groups in config order.
+  ///
+  /// The controller's group list itself comes from a map and its order
+  /// rotates between calls, so it cannot be trusted as config order.
+  /// The aggregate group, however, lists every proxy and group in
+  /// config order in its member list, so groups are ranked by their
+  /// first appearance there. Groups missing from that list keep their
+  /// relative controller order after the ranked ones. Without an
+  /// aggregate group the controller order is used as-is.
+  List<GroupItem> get selectors {
+    final list = (_groups ?? []).where((group) => group.isSelector).toList();
+    final rank = _groupRank;
+    if (rank == null) return list;
+    final indexed = list.indexed.toList()
+      ..sort((a, b) {
+        final ra = rank[a.$2.name] ?? 1 << 30;
+        final rb = rank[b.$2.name] ?? 1 << 30;
+        if (ra != rb) return ra - rb;
+        return a.$1 - b.$1;
+      });
+    return indexed.map((e) => e.$2).toList();
+  }
 
   /// Fetch both proxy and group state.
   ///
@@ -138,6 +163,18 @@ class ProxySelection {
       );
     }
     _groups = list;
+    // Rank groups by first appearance in the aggregate group's member
+    // list, which the controller builds in config order.
+    _groupRank = null;
+    for (final group in list) {
+      if (group.name != 'GLOBAL') continue;
+      final rank = <String, int>{};
+      for (var i = 0; i < group.all.length; i++) {
+        rank.putIfAbsent(group.all[i], () => i);
+      }
+      _groupRank = rank;
+      break;
+    }
   }
 
   /// Set a specific node inside a policy group.

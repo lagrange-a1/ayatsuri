@@ -106,6 +106,44 @@ void main() async {
     expect(selection.proxies['US 3']!.delay, isNull);
   });
 
+  test(
+    'selectors follow aggregate group order, not controller order',
+    () async {
+      // The controller list order rotates between calls (map iteration),
+      // so it must not be trusted; the aggregate group's member list is
+      // built in config order and wins.
+      fake.mockGroups = <Map<String, dynamic>>[
+        {
+          'name': 'third',
+          'type': 'Selector',
+          'all': ['HK 2'],
+          'now': 'HK 2',
+        },
+        {
+          'name': 'first',
+          'type': 'Selector',
+          'all': ['HK 2'],
+          'now': 'HK 2',
+        },
+        {
+          'name': 'second',
+          'type': 'Selector',
+          'all': ['HK 2'],
+          'now': 'HK 2',
+        },
+        {
+          'name': 'GLOBAL',
+          'type': 'Selector',
+          'all': ['HK 2', 'first', 'second', 'third'],
+          'now': 'HK 2',
+        },
+      ];
+      await selection.load();
+      final names = selection.selectors.map((g) => g.name).toList();
+      expect(names, ['first', 'second', 'third', 'GLOBAL']);
+    },
+  );
+
   test('candidatesForMapId groups proxies by country', () async {
     await selection.load();
     // Candidates are picked by name match within each selector group.

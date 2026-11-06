@@ -682,12 +682,21 @@ class _CountrySheetState extends State<_CountrySheet> {
     return list;
   }
 
-  /// Candidates grouped by class/group (A/B/C/D…), preserving the order
-  /// in which groups appear in the kernel config.
+  /// Candidates grouped by class/group, preserving the order in which
+  /// groups appear in the kernel config.
+  ///
+  /// Group first (in original candidate order), then filter/sort
+  /// within each group. Sorting the whole list first would reorder
+  /// the groups themselves by their fastest node.
   Map<String, List<ProxyCandidate>> get _visibleByGroup {
+    final grouped = <String, List<ProxyCandidate>>{};
+    for (final c in _candidates) {
+      grouped.putIfAbsent(c.group.name, () => []).add(c);
+    }
     final map = <String, List<ProxyCandidate>>{};
-    for (final c in _filterAndSort(_candidates)) {
-      map.putIfAbsent(c.group.name, () => []).add(c);
+    for (final entry in grouped.entries) {
+      final filtered = _filterAndSort(entry.value);
+      if (filtered.isNotEmpty) map[entry.key] = filtered;
     }
     return map;
   }
