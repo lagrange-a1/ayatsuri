@@ -86,8 +86,9 @@ class FakeMihomoAPI extends MihomoAPI {
 }
 
 void main() async {
-  // Mock unit test: load dotenv before FakeMihomoAPI constructs MihomoAPI.
-  await dotenv.load();
+  // Load dotenv from memory rather than an asset: `.env` is no longer
+  // bundled as a pubspec asset, so `dotenv.load()` (asset-based) fails.
+  dotenv.loadFromString(envString: 'host=localhost\nport=9091\nsecret=***\n');
   late FakeMihomoAPI fake;
   late ProxySelection selection;
 
@@ -218,10 +219,15 @@ void main() async {
     expect(delayColor(kDelayTimeout), Colors.red);
     expect(delayColor(50), Colors.green);
     expect(delayColor(99), Colors.green);
-    expect(delayColor(100), Colors.amber);
-    expect(delayColor(299), Colors.amber);
-    expect(delayColor(300), Colors.red);
-    expect(delayColor(1000), Colors.red);
+    expect(delayColor(100), Colors.green);
+    expect(delayColor(299), Colors.green);
+    expect(delayColor(300), Colors.green);
+    expect(delayColor(499), Colors.green);
+    expect(delayColor(500), Colors.amber);
+    expect(delayColor(1000), Colors.amber);
+    expect(delayColor(4999), Colors.amber);
+    expect(delayColor(5000), Colors.red);
+    expect(delayColor(6000), Colors.red);
   });
 
   test('delay colors are consistent per state', () {

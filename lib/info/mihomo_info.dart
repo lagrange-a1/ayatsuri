@@ -12,6 +12,15 @@
 /// because controller responses vary across Mihomo versions and because
 /// the streaming endpoints (`/traffic`, `/memory`, `/logs`) can be
 /// truncated mid-line.
+///
+/// Streaming semantics (audit E14/I11): `/traffic`, `/memory` and `/logs`
+/// are chunked streams of one JSON object per line, not one-shot JSON.
+/// The single-tick `fromJson` factories model *one snapshot tick* only;
+/// for a captured (possibly truncated) stream body use the
+/// `fromStreamBody` factories, which go through [parseJsonLines] and
+/// therefore report `sampleCount`/`max*` across all complete lines.
+/// Live consumption belongs in `MihomoAPI.streamTraffic/streamMemory/
+/// streamLogs` (see `lib/endpoints.dart`), not in a one-shot `GET`.
 library;
 
 import 'dart:convert';
@@ -765,6 +774,11 @@ class TrafficInfo {
     );
   }
 
+  /// Summarizes a captured stream body (one JSON object per line, e.g. a
+  /// truncated one-shot snapshot): parses complete lines only.
+  factory TrafficInfo.fromStreamBody(String body) =>
+      TrafficInfo.fromStream(parseJsonLines(body));
+
   /// Summarizes a captured stream: the latest tick plus per-tick maxima.
   factory TrafficInfo.fromStream(List<Map<String, dynamic>> samples) {
     if (samples.isEmpty) return const TrafficInfo();
@@ -816,6 +830,10 @@ class MemoryInfo {
     );
   }
 
+  /// Summarizes a captured stream body (one JSON object per line).
+  factory MemoryInfo.fromStreamBody(String body) =>
+      MemoryInfo.fromStream(parseJsonLines(body));
+
   factory MemoryInfo.fromStream(List<Map<String, dynamic>> samples) {
     if (samples.isEmpty) return const MemoryInfo();
     var maxInuse = 0;
@@ -847,6 +865,11 @@ class LogsInfo {
     this.latest = const <LogEntry>[],
     this.entries = const <LogEntry>[],
   });
+
+  /// Summarizes a captured `/logs` stream body (one JSON object per line,
+  /// possibly truncated mid-line).
+  factory LogsInfo.fromStreamBody(String body, {int latestN = 10}) =>
+      LogsInfo.fromJsonLines(parseJsonLines(body), latestN: latestN);
 
   factory LogsInfo.fromJsonLines(
     List<Map<String, dynamic>> lines, {

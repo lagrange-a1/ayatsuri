@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -14,7 +13,11 @@ import 'views/info_dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load();
+  try {
+    await dotenv.load();
+  } catch (_) {
+    // .env is not bundled (dev-only asset); fall back to defaults.
+  }
   final settingsController = AppSettingsController();
   await settingsController.load();
   runApp(MyApp(settingsController: settingsController));
@@ -45,12 +48,22 @@ class MyApp extends StatelessWidget {
           themeMode: s.themeMode,
           theme: buildAppTheme(s, Brightness.light),
           darkTheme: buildAppTheme(s, Brightness.dark),
-          builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: TextScaler.linear(s.textScale)),
-            child: child!,
-          ),
+          builder: (context, child) {
+            // Overlay the in-app text-scale factor on top of the system
+            // text scale instead of replacing it (the old code overwrote
+            // the user's accessibility setting entirely). A factor of 1.0
+            // passes the system scaler through untouched.
+            final mq = MediaQuery.of(context);
+            if (s.textScale == 1.0) return child!;
+            return MediaQuery(
+              data: mq.copyWith(
+                textScaler: TextScaler.linear(
+                  mq.textScaler.scale(1.0) * s.textScale,
+                ),
+              ),
+              child: child!,
+            );
+          },
           home: MihomoApp(settingsController: _controller),
         );
       },
@@ -99,6 +112,7 @@ class _MihomoAppState extends State<MihomoApp> {
   @override
   void dispose() {
     widget.settingsController.removeListener(_onSettingsChanged);
+    _api.dio.close();
     super.dispose();
   }
 
@@ -192,7 +206,7 @@ class _MihomoInfoState extends State<MihomoInfo> {
   }
 
   Future<void> _fetchEverything() async {
-    if (!mounted) return;
+    if (!mounted || _loading) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -206,7 +220,7 @@ class _MihomoInfoState extends State<MihomoInfo> {
     // (fetch, assign) pairs — one table instead of nine near-identical
     // closures.
     final fetchers =
-        <(Future<Response> Function(), void Function(Map<String, dynamic>))>[
+        <(Future<dynamic> Function(), void Function(Map<String, dynamic>))>[
           (_api.getVersion, (d) => _version = d),
           (_api.getConfigs, (d) => _configs = d),
           (_api.getProxies, (d) => _proxies = d),
@@ -227,7 +241,7 @@ class _MihomoInfoState extends State<MihomoInfo> {
           .catchError((Object e) {
             // Non-transient failure: remember the first one; the error
             // page only shows when nothing loaded at all.
-            _error ??= e is DioException ? _formatDioError(e) : e.toString();
+            _error ??= _formatError(e);
           })
           .whenComplete(() {
             pending--;
@@ -243,15 +257,7 @@ class _MihomoInfoState extends State<MihomoInfo> {
     }
   }
 
-  String _formatDioError(DioException e) {
-    final buf = StringBuffer('DioException: ${e.type}\n');
-    if (e.message != null) buf.writeln('message: ${e.message}');
-    if (e.response != null) {
-      buf.writeln('status: ${e.response?.statusCode}');
-      buf.writeln('data: ${e.response?.data}');
-    }
-    return buf.toString().trim();
-  }
+  String _formatError(Object e) => e.toString();
 
   @override
   Widget build(BuildContext context) {
@@ -281,9 +287,13 @@ class _MihomoInfoState extends State<MihomoInfo> {
               child: const Icon(Icons.refresh),
             )
           : null,
-      // Error page only when nothing loaded at all; partial data (or
-      // transient failures degraded to empty) keeps the list/empty state.
-      body: _error != null && _version == null && !_hasAnyData
+      // Loading takes precedence over the empty/error states while a fetch
+      // is in flight (initial load, nothing to show yet): show a spinner,
+      // not the "no data" placeholder. With data already loaded a refresh
+      // keeps the dashboard visible underneath.
+      body: _version == null && _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null && _version == null && !_hasAnyData
           ? Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
@@ -311,7 +321,7 @@ class _MihomoInfoState extends State<MihomoInfo> {
                     ),
                     const SizedBox(height: 24),
                     FilledButton(
-                      onPressed: _fetchEverything,
+                      onPressed: _loading ? null : _fetchEverything,
                       child: Text(l10n.retry),
                     ),
                   ],
@@ -334,7 +344,7 @@ class _MihomoInfoState extends State<MihomoInfo> {
                   Text(l10n.noDataHint, style: TextStyle(color: Colors.grey)),
                   const SizedBox(height: 32),
                   FilledButton.icon(
-                    onPressed: _fetchEverything,
+                    onPressed: _loading ? null : _fetchEverything,
                     icon: const Icon(Icons.refresh),
                     label: Text(l10n.fetchAllData),
                     style: FilledButton.styleFrom(

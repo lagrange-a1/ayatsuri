@@ -39,7 +39,7 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
       ProbeSort.delay,
   globeQuality:
       $enumDecodeNullable(_$GlobeTextureQualityEnumMap, json['globeQuality']) ??
-      GlobeTextureQuality.k8,
+      GlobeTextureQuality.k2,
   globeTime:
       $enumDecodeNullable(_$GlobeTimeEnumMap, json['globeTime']) ??
       GlobeTime.day,

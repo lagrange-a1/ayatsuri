@@ -45,8 +45,9 @@ class GroupItem {
   final String? now;
 
   /// A group whose selected node can be set with `PUT /proxies/<group>`.
-  bool get isSelector =>
-      ['Selector', 'URLTest', 'Fallback', 'LoadBalance'].contains(type);
+  /// Only `Selector` accepts that call; `URLTest`/`Fallback` use `fixed`
+  /// + `DELETE` to clear and `LoadBalance` has no `now` to pin.
+  bool get isSelector => type == 'Selector';
 }
 
 class ProxyCandidate {
@@ -99,9 +100,10 @@ class ProxySelection {
 
   /// Fetch both proxy and group state.
   ///
-  /// Transient connection failures are retried (~0.5s interval); if they
-  /// persist the load degrades to empty state with no error, only
-  /// non-transient failures are surfaced.
+  /// Transient connection failures are retried (~0.5s interval); if the
+  /// retry budget is exhausted with no data, the load is surfaced as an
+  /// offline error so callers can distinguish "controller unreachable"
+  /// from a genuinely empty proxy set.
   Future<void> load() async {
     loading = true;
     error = null;
@@ -120,8 +122,13 @@ class ProxySelection {
   String? _fatalError;
 
   Future<void> _loadProxies() async {
-    final response = await retryTransient(() => _api.getProxies());
-    if (response == null) return;
+    final response = await retryTransient<Response?>(() => _api.getProxies());
+    if (response == null) {
+      // No response after retries: controller unreachable (offline), not
+      // an empty proxy set. Surface this so the globe can show offline.
+      _fatalError ??= 'Proxy service unreachable: no response (offline?)';
+      return;
+    }
     final map = <String, ProxyItem>{};
     final data = response.data as Map<String, dynamic>;
     // `GET /proxies` returns `{ "proxies": { "<name>": { ... } } }`
@@ -133,16 +140,20 @@ class ProxySelection {
         name: entry.key,
         type: n['type'] as String? ?? 'Unknown',
         alive: n['alive'] as bool? ?? false,
-        // The controller reports the last probe result (ms) per proxy.
-        delay: (n['delay'] as num?)?.toInt(),
+        // The controller has no top-level `delay`; latency lives in
+        // `history[].delay` — take the last entry's value.
+        delay: _lastHistoryDelay(n),
       );
     }
     _proxies = map;
   }
 
   Future<void> _loadGroups() async {
-    final response = await retryTransient(() => _api.getGroups());
-    if (response == null) return;
+    final response = await retryTransient<Response?>(() => _api.getGroups());
+    if (response == null) {
+      _fatalError ??= 'Proxy service unreachable: no response (offline?)';
+      return;
+    }
     final list = <GroupItem>[];
     final data = response.data as Map<String, dynamic>;
     final proxies = (data['proxies'] as List<dynamic>?) ?? <dynamic>[];
@@ -181,6 +192,19 @@ class ProxySelection {
   Future<void> select(String groupName, String proxyName) =>
       _api.selectProxy(groupName, proxyName: proxyName);
 
+  static int? _lastHistoryDelay(Map<String, dynamic> n) {
+    final history = n['history'] as List<dynamic>?;
+    if (history != null && history.isNotEmpty) {
+      final last = history.last;
+      if (last is Map) {
+        return (last['delay'] as num?)?.toInt();
+      }
+      return null;
+    }
+    // Legacy fallback for payloads that still carry a top-level delay.
+    return (n['delay'] as num?)?.toInt();
+  }
+
   /// Probe the delay of one proxy and persist the result. Returns whether a
   /// delay was recorded.
   Future<bool> _probeOne(
@@ -199,11 +223,22 @@ class ProxySelection {
       if (delay == null) return false;
       await _updateDelay(name, delay);
       return true;
-    } on DioException {
-      // Probe failure (node unreachable within the probe timeout):
-      // record the timeout state instead of leaving the row grey.
-      await _updateDelay(name, kDelayTimeout);
-      return true;
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      if (status == 504) {
+        // Probe timed out at the kernel.
+        await _updateDelay(name, kDelayTimeout);
+        return true;
+      }
+      if (status == 503) {
+        // Probe ran but the node is unreachable/blocked.
+        await _updateDelay(name, 0);
+        return true;
+      }
+      // No HTTP response (controller unreachable/offline) or an
+      // authoritative error (400/401/404): leave the delay untouched so
+      // offline is not masqueraded as a node timeout.
+      return false;
     }
   }
 
@@ -309,8 +344,8 @@ const kProbeTimeoutMs = 5000;
 /// Sentinel delay for a probe that timed out (shown red bold as TIMEOUT).
 const kDelayTimeout = -1;
 
-/// Probe-result color coding (`ms`): green under 100, amber 100–300, red over
-/// 300; `red` when the probe was blocked, `grey` when never probed.
+/// Probe-result color coding (`ms`): green under 500, amber 500–5000, red
+/// over 5000; `red` when the probe was blocked, `grey` when never probed.
 Color delayColor(int? delay) {
   if (delay == null) return Colors.grey;
   if (delay == kDelayTimeout) return Colors.red;

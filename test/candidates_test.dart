@@ -14,7 +14,7 @@ import 'package:ayatsuri/proxies/proxy_service.dart';
 
 void main() {
   test('real mihomo: map countries and their node candidates', () async {
-    await dotenv.load();
+    dotenv.loadFromString(envString: 'host=localhost\nport=9091\nsecret=***\n');
     final selection = ProxySelection();
     await selection.load();
     if (selection.error != null) {

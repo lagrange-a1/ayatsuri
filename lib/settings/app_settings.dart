@@ -85,8 +85,8 @@ enum GlobeTime {
   };
 }
 
-/// Bundled earth-texture resolution; 8K is the default (8192×4096),
-/// 2K is kept for low-end devices / small APK size (2048×1024).
+/// Bundled earth-texture resolution; 2K is the default (2048×1024),
+/// 8K is kept for high-end devices (8192×4096).
 /// Both are equirectangular day/night pairs from Solar System Scope.
 enum GlobeTextureQuality {
   k2,
@@ -151,7 +151,7 @@ Map<String, dynamic> _normalize(Map<String, dynamic> j) {
   enumKey('probeSort', ProbeSort.values, ProbeSort.delay);
   enumKey('sheetAnimation', SheetAnimation.values, SheetAnimation.slide);
   enumKey('locale', AppLocale.values, AppLocale.system);
-  enumKey('globeQuality', GlobeTextureQuality.values, GlobeTextureQuality.k8);
+  enumKey('globeQuality', GlobeTextureQuality.values, GlobeTextureQuality.k2);
   enumKey('globeTime', GlobeTime.values, GlobeTime.day);
 
   m['textScale'] = _clampNum(m['textScale'], 1.0, 0.85, 1.3);
@@ -218,7 +218,7 @@ abstract class AppSettings with _$AppSettings {
     @Default(false) bool hideBlocked,
     @Default(ProbeSort.delay) ProbeSort probeSort,
     @JsonKey(name: 'globeQuality')
-    @Default(GlobeTextureQuality.k8)
+    @Default(GlobeTextureQuality.k2)
     GlobeTextureQuality globeQuality,
     @JsonKey(name: 'globeTime') @Default(GlobeTime.day) GlobeTime globeTime,
 
@@ -266,41 +266,124 @@ extension AppSettingsSurface on AppSettings {
       globeTime.isNightFor(brightness) ? nightSurfaceAsset : daySurfaceAsset;
 }
 
+/// Callback invoked when settings persistence fails (load, save, background
+/// decode, or background picking). Failures are never silently swallowed:
+/// they are logged via [debugPrint], recorded on
+/// [AppSettingsController.lastLoadError]/[AppSettingsController.lastSaveError],
+/// and forwarded to this callback if provided.
+typedef PersistenceErrorHandler =
+    void Function(Object error, StackTrace stackTrace);
+
+/// Minimal string-store surface the settings controller needs. The
+/// production implementation is backed by `SharedPreferencesWithCache`
+/// (shared_preferences 2.5+ recommended API); tests inject an in-memory
+/// fake through [AppSettingsController.storeFactory].
+abstract class SettingsStore {
+  String? getString(String key);
+  Future<void> setString(String key, String value);
+}
+
+class _WithCacheSettingsStore implements SettingsStore {
+  _WithCacheSettingsStore(this._prefs);
+  final SharedPreferencesWithCache _prefs;
+
+  @override
+  String? getString(String key) => _prefs.getString(key);
+
+  @override
+  Future<void> setString(String key, String value) =>
+      _prefs.setString(key, value);
+}
+
+Future<SettingsStore> _defaultSettingsStore() async {
+  final prefs = await SharedPreferencesWithCache.create(
+    cacheOptions: const SharedPreferencesWithCacheOptions(
+      allowList: {_prefsKey},
+    ),
+  );
+  return _WithCacheSettingsStore(prefs);
+}
+
 class AppSettingsController extends ChangeNotifier {
-  AppSettingsController({AppSettings? initial})
-    : _settings = initial ?? const AppSettings();
+  AppSettingsController({
+    AppSettings? initial,
+    PersistenceErrorHandler? onPersistenceError,
+    Future<SettingsStore> Function()? storeFactory,
+  }) : _settings = initial ?? const AppSettings(),
+       _onPersistenceError = onPersistenceError,
+       _storeFactory = storeFactory ?? _defaultSettingsStore;
 
   AppSettings _settings;
   AppSettings get settings => _settings;
   bool _loaded = false;
   bool get loaded => _loaded;
 
+  final PersistenceErrorHandler? _onPersistenceError;
+  final Future<SettingsStore> Function() _storeFactory;
+
+  /// Last error seen while loading/restoring settings, if any.
+  Object? lastLoadError;
+
+  /// Last error seen while saving settings, if any.
+  Object? lastSaveError;
+
+  void _reportError(
+    String operation,
+    Object error,
+    StackTrace stackTrace, {
+    bool isLoad = false,
+  }) {
+    if (isLoad) {
+      lastLoadError = error;
+    } else {
+      lastSaveError = error;
+    }
+    debugPrint('[AppSettings] $operation failed: $error');
+    final handler = _onPersistenceError;
+    if (handler != null) {
+      try {
+        handler(error, stackTrace);
+      } catch (handlerError) {
+        debugPrint('[AppSettings] onPersistenceError threw: $handlerError');
+      }
+    }
+  }
+
   /// Decoded background bytes for display (from file or base64).
   Uint8List? _backgroundBytes;
   Uint8List? get backgroundBytes => _backgroundBytes;
 
   Future<void> _resolveBackgroundBytes() async {
-    if (_settings.backgroundPath != null) {
-      _backgroundBytes = await readBackgroundFile();
-      if (_backgroundBytes != null) return;
-      // File vanished (cleared app data, etc.): drop the stale path.
-      _settings = _settings.copyWith(backgroundPath: null);
+    try {
+      if (_settings.backgroundPath != null) {
+        _backgroundBytes = await readBackgroundFile();
+        if (_backgroundBytes != null) return;
+        // File vanished (cleared app data, etc.): drop the stale path.
+        _settings = _settings.copyWith(backgroundPath: null);
+      }
+      final b64 = _settings.backgroundBase64;
+      _backgroundBytes = b64 == null ? null : base64Decode(b64);
+    } catch (error, stackTrace) {
+      _backgroundBytes = null;
+      _reportError('background restore', error, stackTrace, isLoad: true);
     }
-    final b64 = _settings.backgroundBase64;
-    _backgroundBytes = b64 == null ? null : base64Decode(b64);
   }
 
   Future<void> load() async {
+    lastLoadError = null;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_prefsKey);
+      final store = await _storeFactory();
+      final raw = store.getString(_prefsKey);
       if (raw != null) {
         _settings = AppSettings.fromJson(
           jsonDecode(raw) as Map<String, dynamic>,
         );
       }
-    } catch (_) {
+    } catch (error, stackTrace) {
+      // Unreadable/corrupt data falls back to defaults so startup is never
+      // blocked -- but the failure is now observable instead of silent.
       _settings = const AppSettings();
+      _reportError('settings load', error, stackTrace, isLoad: true);
     }
     await _resolveBackgroundBytes();
     _loaded = true;
@@ -310,11 +393,14 @@ class AppSettingsController extends ChangeNotifier {
   Future<void> update(AppSettings next) async {
     _settings = next;
     notifyListeners();
+    lastSaveError = null;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_prefsKey, jsonEncode(next.toJson()));
-    } catch (_) {
-      // Persistence failure must not break the running app.
+      final store = await _storeFactory();
+      await store.setString(_prefsKey, jsonEncode(next.toJson()));
+    } catch (error, stackTrace) {
+      // Persistence failure must not break the running app, but it is
+      // logged and reported instead of being swallowed.
+      _reportError('settings save', error, stackTrace);
     }
   }
 
@@ -353,7 +439,8 @@ class AppSettingsController extends ChangeNotifier {
         }
       }
       return true;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      _reportError('background pick', error, stackTrace);
       return false;
     }
   }

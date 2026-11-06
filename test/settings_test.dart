@@ -6,7 +6,31 @@ import 'package:ayatsuri/settings/settings_page.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+/// In-memory [SettingsStore] for tests.
+///
+/// Production uses `SharedPreferencesWithCache`, whose async platform
+/// (`SharedPreferencesAsyncPlatform`) is not available under
+/// `flutter test` unless the plugin registrant runs; the legacy
+/// `SharedPreferences.setMockInitialValues` therefore does not work
+/// with it. Injection via `storeFactory` is the supported test seam.
+class _FakeSettingsStore implements SettingsStore {
+  _FakeSettingsStore([Map<String, String>? initial])
+    : data = Map.of(initial ?? const {}),
+      setStringCalls = [];
+
+  final Map<String, String> data;
+  final List<String> setStringCalls;
+
+  @override
+  String? getString(String key) => data[key];
+
+  @override
+  Future<void> setString(String key, String value) async {
+    setStringCalls.add(value);
+    data[key] = value;
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -65,20 +89,45 @@ void main() {
   });
 
   test('corrupt stored settings fall back to defaults', () async {
-    SharedPreferences.setMockInitialValues({
-      'ayatsuri_settings_v1': 'not-json{{{',
-    });
-    final controller = AppSettingsController();
+    final errors = <Object>[];
+    final store = _FakeSettingsStore({'ayatsuri_settings_v1': 'not-json{{{'});
+    final controller = AppSettingsController(
+      storeFactory: () async => store,
+      onPersistenceError: (error, _) => errors.add(error),
+    );
     await controller.load();
     expect(controller.loaded, isTrue);
     expect(controller.settings.themeMode, ThemeMode.system);
+    expect(controller.lastLoadError, isNotNull);
+    expect(errors, isNotEmpty);
+  });
+
+  test('settings persist through injected store', () async {
+    final store = _FakeSettingsStore();
+    final controller = AppSettingsController(storeFactory: () async => store);
+    await controller.load();
+    expect(controller.loaded, isTrue);
+    expect(controller.lastLoadError, isNull);
+    await controller.update(
+      controller.settings.copyWith(themeMode: ThemeMode.dark),
+    );
+    expect(controller.lastSaveError, isNull);
+    expect(store.getString('ayatsuri_settings_v1'), isNotNull);
+    expect(
+      store.getString('ayatsuri_settings_v1'),
+      contains('"themeMode":"dark"'),
+    );
+    // Reloading from the same store restores the persisted value.
+    final reloaded = AppSettingsController(storeFactory: () async => store);
+    await reloaded.load();
+    expect(reloaded.settings.themeMode, ThemeMode.dark);
   });
 
   testWidgets('settings page renders and persists theme mode change', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({});
-    final controller = AppSettingsController();
+    final store = _FakeSettingsStore();
+    final controller = AppSettingsController(storeFactory: () async => store);
     await controller.load();
     await tester.pumpWidget(
       MaterialApp(
@@ -113,15 +162,14 @@ void main() {
     await tester.tap(find.text('Dark').first);
     await tester.pumpAndSettle();
     expect(controller.settings.themeMode, ThemeMode.dark);
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('ayatsuri_settings_v1'), isNotNull);
+    expect(store.getString('ayatsuri_settings_v1'), isNotNull);
   });
 
   testWidgets('language switch applies Chinese live and persists', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({});
-    final controller = AppSettingsController();
+    final store = _FakeSettingsStore();
+    final controller = AppSettingsController(storeFactory: () async => store);
     await controller.load();
     await tester.pumpWidget(
       ListenableBuilder(
@@ -145,7 +193,6 @@ void main() {
     expect(controller.settings.locale, AppLocale.zh);
     expect(find.text('设置'), findsOneWidget);
     expect(find.text('外观'), findsOneWidget);
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('ayatsuri_settings_v1'), contains('"locale":"zh"'));
+    expect(store.getString('ayatsuri_settings_v1'), contains('"locale":"zh"'));
   });
 }

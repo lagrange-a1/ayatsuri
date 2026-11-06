@@ -10,7 +10,7 @@ void main() async {
   testWidgets('App has a globe page and a bottom navigation bar', (
     WidgetTester tester,
   ) async {
-    await dotenv.load();
+    dotenv.loadFromString(envString: 'host=localhost\nport=9091\nsecret=***\n');
     // Build our app and trigger a frame.
     await tester.pumpWidget(MyApp());
 

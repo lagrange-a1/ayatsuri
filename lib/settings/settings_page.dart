@@ -15,6 +15,23 @@ const _seedPresets = <Color>[
   Color(0xFF455A64), // slate
 ];
 
+/// Localized label for an [InitialView] choice (reused by the subtitle and
+/// the dropdown items instead of showing the raw enum identifier).
+String _initialViewLabel(AppLocalizations l10n, InitialView v) => switch (v) {
+  InitialView.auto => l10n.initialViewAuto,
+  InitialView.asia => l10n.asiaView,
+  InitialView.global => l10n.globalView,
+  InitialView.custom => l10n.customView,
+};
+
+/// Display label for a [DynamicSchemeVariant]. The variant names have no
+/// l10n keys yet (arb change is out of this scope), so show a presentation
+/// name instead of the raw camelCase enum identifier.
+String _schemeVariantLabel(DynamicSchemeVariant v) {
+  final name = v.name;
+  return name[0].toUpperCase() + name.substring(1);
+}
+
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key, required this.controller});
   final AppSettingsController controller;
@@ -112,13 +129,16 @@ class SettingsPage extends StatelessWidget {
               ),
               ListTile(
                 title: Text(l10n.colorStyle),
-                subtitle: Text(s.schemeVariant.name),
+                subtitle: Text(_schemeVariantLabel(s.schemeVariant)),
                 trailing: DropdownButton<DynamicSchemeVariant>(
                   value: s.schemeVariant,
                   underline: const SizedBox.shrink(),
                   items: DynamicSchemeVariant.values
                       .map(
-                        (v) => DropdownMenuItem(value: v, child: Text(v.name)),
+                        (v) => DropdownMenuItem(
+                          value: v,
+                          child: Text(_schemeVariantLabel(v)),
+                        ),
                       )
                       .toList(),
                   onChanged: (v) {
@@ -292,28 +312,18 @@ class SettingsPage extends StatelessWidget {
               ),
               ListTile(
                 title: Text(l10n.initialView),
-                subtitle: Text(s.initialView.name),
+                subtitle: Text(_initialViewLabel(l10n, s.initialView)),
                 trailing: DropdownButton<InitialView>(
                   value: s.initialView,
                   underline: const SizedBox.shrink(),
-                  items: [
-                    DropdownMenuItem(
-                      value: InitialView.auto,
-                      child: Text(l10n.initialViewAuto),
-                    ),
-                    DropdownMenuItem(
-                      value: InitialView.asia,
-                      child: Text(l10n.asiaView),
-                    ),
-                    DropdownMenuItem(
-                      value: InitialView.global,
-                      child: Text(l10n.globalView),
-                    ),
-                    DropdownMenuItem(
-                      value: InitialView.custom,
-                      child: Text(l10n.customView),
-                    ),
-                  ],
+                  items: InitialView.values
+                      .map(
+                        (v) => DropdownMenuItem(
+                          value: v,
+                          child: Text(_initialViewLabel(l10n, v)),
+                        ),
+                      )
+                      .toList(),
                   onChanged: (v) {
                     if (v != null) set(s.copyWith(initialView: v));
                   },

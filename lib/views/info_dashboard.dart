@@ -27,7 +27,6 @@ class InfoDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
@@ -42,10 +41,6 @@ class InfoDashboard extends StatelessWidget {
         _TrafficSection(summary: summary, raw: rawBySection['traffic']),
         _MemorySection(summary: summary, raw: rawBySection['memory']),
         _LogsSection(summary: summary, raw: rawBySection['logs']),
-        // Keep the section-title keys referenced for l10n completeness.
-        ExcludeSemantics(
-          child: Text(l10n.sectionVersion, style: const TextStyle(fontSize: 0)),
-        ),
       ],
     );
   }

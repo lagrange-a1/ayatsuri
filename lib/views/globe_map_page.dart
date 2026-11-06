@@ -32,6 +32,18 @@ import '../proxies/proxy_service.dart';
 import '../settings/app_settings.dart';
 import '../platform/test_guard.dart';
 
+/// Theme-semantic delay colour. Thresholds preserve the proxy-service
+/// contract exactly: <500 good, 500–5000 warning, >5000 / 0 / timeout
+/// bad, null unprobed. Colours come from [ColorScheme] instead of
+/// hard-coded `Colors.*` so contrast follows light/dark/seed themes.
+Color _delayColorForTheme(ColorScheme scheme, int? delay) {
+  if (delay == null) return scheme.outline;
+  if (delay == kDelayTimeout || delay == 0) return scheme.error;
+  if (delay < 500) return scheme.tertiary;
+  if (delay < 5000) return scheme.secondary;
+  return scheme.error;
+}
+
 class GlobeMapPage extends StatefulWidget {
   const GlobeMapPage({super.key, required this.api, this.settingsController});
 
@@ -59,10 +71,39 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
   String? _hoverAlpha2;
   String? _loadError;
   bool _globeDataError = false;
+  bool _selectionLoading = true;
+  bool _geoLoading = true;
+  bool _tapPending = false;
+  DateTime? _lastProbeAt;
   Timer? _tapTimer;
   Timer? _probeTimer;
+  Timer? _immediateProbeTimer;
   bool _probingAll = false;
   int _tapToken = 0;
+
+  /// Proxy-service offline/error distinction (read-only contract from
+  /// `proxy_service.dart`): unreachable/offline errors contain these
+  /// markers; a genuinely empty proxy set has no error at all.
+  bool _isOfflineError(String? error) {
+    if (error == null) return false;
+    final e = error.toLowerCase();
+    return e.contains('unreachable') ||
+        e.contains('offline') ||
+        e.contains('connection') ||
+        e.contains('connection refused') ||
+        e.contains('socket');
+  }
+
+  String get _loadingText => _isChinese ? '加载中…' : 'Loading…';
+
+  String get _oceanText =>
+      _isChinese ? '海洋 — 这里没有国家' : 'Ocean — no country here';
+
+  String get _dragText =>
+      _isChinese ? '检测到拖动 — 不是点击' : 'Drag detected — not a tap';
+
+  String get _probePausedText =>
+      _isChinese ? '节点超过 100，周期测速已暂停' : 'Periodic probing paused (100+ nodes)';
   AppSettingsController _settings = AppSettingsController();
 
   AppSettings get _s => _settings.settings;
@@ -133,6 +174,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
     _settings.removeListener(_onSettingsChanged);
     _tapTimer?.cancel();
     _probeTimer?.cancel();
+    _immediateProbeTimer?.cancel();
     // The package's dispose() touches a late AnimationController that only
     // the globe widget initializes; in tests the globe is never built.
     if (!_isTest) _globeController.dispose();
@@ -145,7 +187,10 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
         'assets/globe/countries.geojson',
       );
       if (!mounted) return;
-      setState(() => _shapes = parseCountryShapes(text));
+      setState(() {
+        _shapes = parseCountryShapes(text);
+        _geoLoading = false;
+      });
       // Start facing Asia, where most of this project's nodes are. The
       // globe state only exists after the first frame, so focus post-frame
       // (and again once the texture is ready, in case of an early call).
@@ -157,6 +202,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
         setState(() {
           _loadError = e.toString();
           _globeDataError = true;
+          _geoLoading = false;
         });
       }
     }
@@ -220,9 +266,11 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
   }
 
   Future<void> _loadSelection() async {
+    if (mounted) setState(() => _selectionLoading = true);
     await _selection.load();
     if (!mounted) return;
     setState(() {
+      _selectionLoading = false;
       _loadError = _selection.error;
       _globeDataError = false;
     });
@@ -255,14 +303,17 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
   void _restartProbeTimer({bool immediate = false}) {
     _probeTimer?.cancel();
     _probeTimer = null;
+    _immediateProbeTimer?.cancel();
+    _immediateProbeTimer = null;
     if (_isTest) return;
     final interval = _effectiveProbeInterval();
     if (interval == null) return;
     _probeTimer = Timer.periodic(interval, (_) => _probeAllNodes());
     // On (re)load and on off→on transitions, start the first sweep right
     // away instead of waiting a full interval; _probeAllNodes no-ops
-    // until the selection is loaded.
-    if (immediate) Timer(Duration.zero, _probeAllNodes);
+    // until the selection is loaded. Keep the zero-timer handle so it
+    // can be cancelled on dispose/restart instead of firing blindly.
+    if (immediate) _immediateProbeTimer = Timer(Duration.zero, _probeAllNodes);
   }
 
   /// Clash Verge Rev-style background probing: test every known proxy so
@@ -285,6 +336,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
       }
     } finally {
       _probingAll = false;
+      if (mounted) setState(() => _lastProbeAt = DateTime.now());
     }
   }
 
@@ -350,17 +402,39 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
 
   // ── Globe input ────────────────────────────────────────────────────
 
+  void _showTapFeedback(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   void _onGlobeTap(GlobeCoordinates? coords) {
     if (coords == null || _shapes == null) return;
     final rotation = _rotationSnapshot();
     final token = ++_tapToken;
+    // Instant feedback within the 300ms tap-vs-drag window instead of
+    // silence: the pill shows a spinner while we wait.
+    if (mounted) setState(() => _tapPending = true);
     _tapTimer?.cancel();
     _tapTimer = Timer(const Duration(milliseconds: 300), () {
       if (!mounted || token != _tapToken) return;
+      setState(() => _tapPending = false);
       // A rotate-drag changes the rotation; a genuine tap does not.
-      if (_rotationSnapshot() != rotation) return;
+      // Previously this (and ocean taps) returned silently.
+      if (_rotationSnapshot() != rotation) {
+        _showTapFeedback(_dragText);
+        return;
+      }
       final alpha2 = _shapes?.alpha2At(coords.latitude, coords.longitude);
-      if (alpha2 == null) return; // Ocean tap.
+      if (alpha2 == null) {
+        _showTapFeedback(_oceanText);
+        return; // Ocean tap.
+      }
       _onCountry(alpha2);
     });
   }
@@ -379,7 +453,10 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
   }
 
   Future<void> _onCountry(String alpha2) async {
-    if (alpha2.isEmpty || alpha2 == '-99') return;
+    if (alpha2.isEmpty || alpha2 == '-99') {
+      _showTapFeedback(AppLocalizations.of(context).noMatchingNode);
+      return;
+    }
     if (!mounted) return;
     setState(() => _selectedAlpha2 = alpha2);
     _syncPoints();
@@ -408,7 +485,11 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
           if (mounted) {
             final l10n = AppLocalizations.of(context);
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(l10n.selectedSnack(proxyName, groupName))),
+              SnackBar(
+                content: Text(l10n.selectedSnack(proxyName, groupName)),
+                duration: const Duration(seconds: 6),
+                behavior: SnackBarBehavior.floating,
+              ),
             );
           }
         },
@@ -427,6 +508,18 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
     // last tap when the kernel state is unknown.
     final titleAlpha2 = _kernelAlpha2 ?? _selectedAlpha2;
     final titlePattern = titleAlpha2 == null ? null : kCountries[titleAlpha2];
+    final loading = _selectionLoading || _geoLoading;
+    final offline = _isOfflineError(_loadError) && !_globeDataError;
+    final hasData = _selection.proxies.isNotEmpty;
+    final isEmpty =
+        !loading &&
+        _loadError == null &&
+        _selection.loaded &&
+        _selection.proxies.isEmpty;
+    final focusAlpha2 = _selectedAlpha2 ?? _hoverAlpha2;
+    final globeLabel = focusAlpha2 != null
+        ? _displayName(focusAlpha2)
+        : l10n.tapCountry;
     return Scaffold(
       backgroundColor: const Color(0xFF05070D),
       appBar: AppBar(
@@ -477,11 +570,48 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
                 return Stack(
                   children: [
                     Positioned.fill(
-                      child: FlutterEarthGlobe(
-                        radius: radius,
-                        controller: _globeController,
-                        onTap: _onGlobeTap,
-                        onHover: _onGlobeHover,
+                      // Screen-reader / keyboard access: the globe is a
+                      // button whose label is the country *name* (not the
+                      // flag emoji alone); Enter/Space opens the selected
+                      // or hovered country. Marker Points have no semantics
+                      // of their own, so this wrapper is the keyboard path.
+                      child: Semantics(
+                        container: true,
+                        button: true,
+                        label: globeLabel,
+                        hint: l10n.tapCountry,
+                        onTap: focusAlpha2 == null
+                            ? null
+                            : () => _onCountry(focusAlpha2),
+                        child: FocusableActionDetector(
+                          onShowFocusHighlight: (_) {},
+                          child: Shortcuts(
+                            shortcuts: {
+                              SingleActivator(LogicalKeyboardKey.enter):
+                                  _GlobeActivateIntent(),
+                              SingleActivator(LogicalKeyboardKey.space):
+                                  _GlobeActivateIntent(),
+                            },
+                            child: Actions(
+                              actions: {
+                                _GlobeActivateIntent: CallbackAction(
+                                  onInvoke: (_) {
+                                    if (focusAlpha2 != null) {
+                                      _onCountry(focusAlpha2);
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              },
+                              child: FlutterEarthGlobe(
+                                radius: radius,
+                                controller: _globeController,
+                                onTap: _onGlobeTap,
+                                onHover: _onGlobeHover,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -491,29 +621,92 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
           Positioned(
             left: 16,
             top: 16,
-            child: _InfoPill(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.place, size: 16),
-                  const SizedBox(width: 8),
-                  Text(
-                    _selectedAlpha2 != null
-                        ? l10n.selectedCountry(
-                            selectedPattern?.flag ?? '',
-                            _displayName(_selectedAlpha2!),
-                          )
-                        : hoverPattern != null
-                        ? '${hoverPattern.flag} ${_displayName(_hoverAlpha2!)}'
-                        : l10n.tapCountry,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
+            child: Semantics(
+              liveRegion: true,
+              label: globeLabel,
+              child: _InfoPill(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.place, size: 16),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        _selectedAlpha2 != null
+                            ? l10n.selectedCountry(
+                                selectedPattern?.flag ?? '',
+                                _displayName(_selectedAlpha2!),
+                              )
+                            : hoverPattern != null
+                            ? '${hoverPattern.flag} ${_displayName(_hoverAlpha2!)}'
+                            : l10n.tapCountry,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    if (_tapPending) ...[
+                      const SizedBox(width: 8),
+                      const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
           ),
+          if (_selection.proxies.length > 100)
+            Positioned(
+              left: 16,
+              top: 68,
+              child: _InfoPill(child: Text(_probePausedText)),
+            ),
+          if (_lastProbeAt != null && _selection.proxies.isNotEmpty)
+            Positioned(
+              left: 16,
+              top: _selection.proxies.length > 100 ? 116 : 68,
+              child: _InfoPill(
+                child: Text(
+                  '${_isChinese ? '上次测速' : 'Last probe'} '
+                  '${_lastProbeAt!.hour.toString().padLeft(2, '0')}:'
+                  '${_lastProbeAt!.minute.toString().padLeft(2, '0')}',
+                ),
+              ),
+            ),
+          if (loading && !hasData && _loadError == null)
+            Center(
+              child: Semantics(
+                label: _loadingText,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(
+                      key: ValueKey('globe-loading'),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(_loadingText),
+                  ],
+                ),
+              ),
+            ),
+          if (isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 64),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(l10n.noDataYet, key: const ValueKey('globe-empty')),
+                    const SizedBox(height: 4),
+                    Text(l10n.noDataHint, textAlign: TextAlign.center),
+                  ],
+                ),
+              ),
+            ),
           if (_loadError != null)
             Positioned(
+              key: ValueKey(offline ? 'globe-offline' : 'globe-error'),
               left: 16,
               right: 16,
               bottom: 16,
@@ -529,7 +722,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
                 child: Row(
                   children: [
                     Icon(
-                      Icons.error_outline,
+                      offline ? Icons.cloud_off : Icons.error_outline,
                       size: 18,
                       color: Theme.of(context).colorScheme.onErrorContainer,
                     ),
@@ -538,6 +731,8 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
                       child: Text(
                         _globeDataError
                             ? l10n.globeDataFailed(_loadError!)
+                            : offline
+                            ? '${_isChinese ? '离线' : 'Offline'}: $_loadError'
                             : _loadError!,
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onErrorContainer,
@@ -546,6 +741,10 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                       ),
+                    ),
+                    TextButton(
+                      onPressed: _loadSelection,
+                      child: Text(l10n.retry),
                     ),
                   ],
                 ),
@@ -632,14 +831,19 @@ class _CountrySheetState extends State<_CountrySheet> {
     setState(() => _selecting = candidate.proxy.name);
     try {
       await widget.selection.select(candidate.group.name, candidate.proxy.name);
-    } on DioException catch (e) {
+    } catch (e) {
+      // Not only DioException: any select failure (parse, state, …)
+      // must surface the same persistent feedback, not crash silently.
       if (!mounted) return;
       setState(() => _selecting = null);
+      final message = e is DioException
+          ? (e.message ?? e.toString())
+          : e.toString();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            AppLocalizations.of(context).failed(e.message ?? e.toString()),
-          ),
+          content: Text(AppLocalizations.of(context).failed(message)),
+          duration: const Duration(seconds: 6),
+          behavior: SnackBarBehavior.floating,
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -713,7 +917,7 @@ class _CountrySheetState extends State<_CountrySheet> {
     ColorScheme scheme,
   ) {
     final delay = candidate.proxy.delay;
-    final color = delayColor(delay);
+    final color = _delayColorForTheme(scheme, delay);
     final selecting = _selecting == candidate.proxy.name;
     return Material(
       color: candidate.isNow
@@ -763,11 +967,7 @@ class _CountrySheetState extends State<_CountrySheet> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   else if (candidate.isNow)
-                    const Icon(
-                      Icons.check_circle,
-                      size: 16,
-                      color: Colors.green,
-                    ),
+                    Icon(Icons.check_circle, size: 16, color: scheme.tertiary),
                 ],
               ),
               const SizedBox(height: 4),
@@ -834,9 +1034,13 @@ class _CountrySheetState extends State<_CountrySheet> {
             children: [
               Row(
                 children: [
-                  Text(
-                    pattern?.flag ?? flagForAlpha2(widget.alpha2),
-                    style: const TextStyle(fontSize: 28),
+                  // Flag emoji is decorative; the country name next to it
+                  // is the accessible label (no emoji-only identifier).
+                  ExcludeSemantics(
+                    child: Text(
+                      pattern?.flag ?? flagForAlpha2(widget.alpha2),
+                      style: const TextStyle(fontSize: 28),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -1044,6 +1248,11 @@ class _StaggerCard extends StatelessWidget {
       child: child,
     );
   }
+}
+
+/// Keyboard activation intent for the globe (Enter/Space).
+class _GlobeActivateIntent extends Intent {
+  const _GlobeActivateIntent();
 }
 
 class _InfoPill extends StatelessWidget {
