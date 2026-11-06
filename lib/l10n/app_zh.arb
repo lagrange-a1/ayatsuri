@@ -47,7 +47,7 @@
   "globeTitle": "选择节点 · 地球",
   "reloadProxies": "重新加载代理",
   "globeTestPlaceholder": "地球（测试中不可用）",
-  "tapCountry": "点击一个国家",
+  "tapCountry": "点击一个国家/地区",
   "selectedCountry": "已选择：{flag} {name}",
   "@selectedCountry": {
     "placeholders": {
@@ -98,7 +98,7 @@
       }
     }
   },
-  "noMatchingNode": "本国暂无匹配节点。",
+  "noMatchingNode": "本国/地区暂无匹配节点。",
   "globeDataFailed": "地球数据加载失败：{error}",
   "@globeDataFailed": {
     "placeholders": {

@@ -150,7 +150,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get globeTestPlaceholder => '地球（测试中不可用）';
 
   @override
-  String get tapCountry => '点击一个国家';
+  String get tapCountry => '点击一个国家/地区';
 
   @override
   String selectedCountry(String flag, String name) {
@@ -181,7 +181,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get noMatchingNode => '本国暂无匹配节点。';
+  String get noMatchingNode => '本国/地区暂无匹配节点。';
 
   @override
   String globeDataFailed(String error) {

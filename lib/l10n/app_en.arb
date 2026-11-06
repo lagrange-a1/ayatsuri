@@ -47,7 +47,7 @@
   "globeTitle": "Select a node · Globe",
   "reloadProxies": "Reload proxies",
   "globeTestPlaceholder": "Globe (3D unavailable in tests)",
-  "tapCountry": "Tap a country",
+  "tapCountry": "Tap a Country/Region",
   "selectedCountry": "Selected: {flag} {name}",
   "@selectedCountry": {
     "placeholders": {
@@ -98,7 +98,7 @@
       }
     }
   },
-  "noMatchingNode": "No matching node for this country.",
+  "noMatchingNode": "No matching node for this Country/Region.",
   "globeDataFailed": "Globe data failed: {error}",
   "@globeDataFailed": {
     "placeholders": {

@@ -150,7 +150,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get globeTestPlaceholder => 'Globe (3D unavailable in tests)';
 
   @override
-  String get tapCountry => 'Tap a country';
+  String get tapCountry => 'Tap a Country/Region';
 
   @override
   String selectedCountry(String flag, String name) {
@@ -181,7 +181,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get noMatchingNode => 'No matching node for this country.';
+  String get noMatchingNode => 'No matching node for this Country/Region.';
 
   @override
   String globeDataFailed(String error) {
