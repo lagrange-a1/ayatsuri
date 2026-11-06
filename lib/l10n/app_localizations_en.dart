@@ -385,4 +385,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get currentNode => 'current node';
+
+  @override
+  String get pingAllNodes => 'Ping all nodes';
+
+  @override
+  String pingAllDone(int count) {
+    return 'Pinged $count node(s)';
+  }
+
+  @override
+  String pingAllFailed(String error) {
+    return 'Ping failed: $error';
+  }
 }

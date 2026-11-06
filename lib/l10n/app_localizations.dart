@@ -817,6 +817,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'current node'**
   String get currentNode;
+
+  /// No description provided for @pingAllNodes.
+  ///
+  /// In en, this message translates to:
+  /// **'Ping all nodes'**
+  String get pingAllNodes;
+
+  /// No description provided for @pingAllDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinged {count} node(s)'**
+  String pingAllDone(int count);
+
+  /// No description provided for @pingAllFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Ping failed: {error}'**
+  String pingAllFailed(String error);
 }
 
 class _AppLocalizationsDelegate

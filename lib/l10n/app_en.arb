@@ -191,5 +191,22 @@
       }
     }
   },
-  "currentNode": "current node"
+  "currentNode": "current node",
+  "pingAllNodes": "Ping all nodes",
+  "pingAllDone": "Pinged {count} node(s)",
+  "@pingAllDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pingAllFailed": "Ping failed: {error}",
+  "@pingAllFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  }
 }

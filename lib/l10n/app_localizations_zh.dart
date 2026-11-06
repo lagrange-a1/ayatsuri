@@ -385,4 +385,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get currentNode => '当前节点';
+
+  @override
+  String get pingAllNodes => '测速全部节点';
+
+  @override
+  String pingAllDone(int count) {
+    return '已测速 $count 个节点';
+  }
+
+  @override
+  String pingAllFailed(String error) {
+    return '测速失败：$error';
+  }
 }

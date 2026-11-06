@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'endpoints.dart';
 import 'info/mihomo_info.dart';
+import 'proxies/proxy_service.dart';
 import 'settings/app_settings.dart';
 import 'settings/settings_page.dart';
 import 'views/globe_map_page.dart';
@@ -169,6 +170,7 @@ class MihomoInfo extends StatefulWidget {
 class _MihomoInfoState extends State<MihomoInfo> {
   late final MihomoAPI _api;
   bool _loading = false;
+  bool _pinging = false;
   String? _error;
 
   // ── Collected data ──────────────────────────────────────────────────
@@ -259,6 +261,47 @@ class _MihomoInfoState extends State<MihomoInfo> {
 
   String _formatError(Object e) => e.toString();
 
+  /// One-click ping test for every node (Clash Verge-style): probe each
+  /// selector member once with bounded concurrency, then refetch so the
+  /// dashboard delays are fresh. Lives on the Info tab — not the globe
+  /// (which already probes in the background) and not settings.
+  Future<void> _pingAllNodes() async {
+    if (_pinging || _loading) return;
+    setState(() => _pinging = true);
+    var count = 0;
+    Object? failure;
+    try {
+      final selection = ProxySelection(api: _api);
+      await selection.load();
+      final names = <String>{};
+      for (final group in selection.selectors) {
+        names.addAll(group.all);
+      }
+      final list = names.toList();
+      // Bounded concurrency so a full sweep does not hammer the core.
+      for (var i = 0; i < list.length; i += 16) {
+        if (!mounted) return;
+        await Future.wait(list.skip(i).take(16).map(selection.probeByName));
+        count += list.skip(i).take(16).length;
+      }
+    } catch (e) {
+      failure = e;
+    }
+    if (!mounted) return;
+    setState(() => _pinging = false);
+    final l10n = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          failure != null
+              ? l10n.pingAllFailed(failure.toString())
+              : l10n.pingAllDone(count),
+        ),
+      ),
+    );
+    if (failure == null) _fetchEverything();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -267,6 +310,17 @@ class _MihomoInfoState extends State<MihomoInfo> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(l10n.infoTitle),
         actions: [
+          IconButton(
+            onPressed: (_pinging || _loading) ? null : _pingAllNodes,
+            icon: _pinging
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.speed),
+            tooltip: l10n.pingAllNodes,
+          ),
           IconButton(
             onPressed: _loading ? null : _fetchEverything,
             icon: _loading

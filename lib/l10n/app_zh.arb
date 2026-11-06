@@ -191,5 +191,22 @@
       }
     }
   },
-  "currentNode": "当前节点"
+  "currentNode": "当前节点",
+  "pingAllNodes": "测速全部节点",
+  "pingAllDone": "已测速 {count} 个节点",
+  "@pingAllDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pingAllFailed": "测速失败：{error}",
+  "@pingAllFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  }
 }
