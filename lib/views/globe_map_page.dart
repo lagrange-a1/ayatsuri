@@ -14,6 +14,7 @@
  */
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -73,7 +74,6 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
   bool _globeDataError = false;
   bool _selectionLoading = true;
   bool _geoLoading = true;
-  bool _tapPending = false;
   DateTime? _lastProbeAt;
   Timer? _tapTimer;
   Timer? _probeTimer;
@@ -96,11 +96,21 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
 
   String get _loadingText => _isChinese ? '加载中…' : 'Loading…';
 
-  String get _oceanText =>
-      _isChinese ? '海洋 — 这里没有国家' : 'Ocean — no country here';
+  /// Base zoom the publisher's example uses; globe size is expressed as
+  /// an offset from it via the controller's own zoom (see [_zoomForScale]).
+  static const double _baseZoom = 0.5;
 
-  String get _dragText =>
-      _isChinese ? '检测到拖动 — 不是点击' : 'Drag detected — not a tap';
+  /// Last zoom reported by the globe, for marker-size compensation.
+  double _currentZoom = _baseZoom;
+  double _lastSyncZoom = _baseZoom;
+
+  /// Map the settings globe-size factor onto the controller zoom the
+  /// package already provides: the package renders radius as
+  /// `radius * 2^zoom`, so a size factor `s` is `zoom = log2(s)` above
+  /// the base zoom. This is what makes pinch zoom (Android) and the
+  /// settings slider drive the same mechanism.
+  static double _zoomForScale(double scale) =>
+      _baseZoom + math.log(scale) / math.ln2;
 
   String get _probePausedText =>
       _isChinese ? '节点超过 100，周期测速已暂停' : 'Periodic probing paused (100+ nodes)';
@@ -160,10 +170,12 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
       isRotating: _s.autoRotate,
       rotationSpeed: _s.rotationSpeed,
       isZoomEnabled: true,
-      zoom: 0.5,
+      zoom: _zoomForScale(_s.globeScale),
       minZoom: -1.5,
       maxZoom: 5,
     );
+    _currentZoom = _globeController.zoom;
+    _lastSyncZoom = _currentZoom;
     _globeController.onLoaded = _focusInitial;
     unawaited(_initGeoData());
     unawaited(_loadSelection());
@@ -257,6 +269,10 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
         _globeController.stopRotation();
       }
       _globeController.setRotationSpeed(s.rotationSpeed);
+      // Globe size goes through the controller's own zoom so it shares
+      // the mechanism with pinch zoom on Android.
+      _globeController.setZoom(_zoomForScale(s.globeScale));
+      _currentZoom = _globeController.zoom;
       // Swap textures in place when the user switches 2K <-> 8K or
       // changes the globe time mode.
       _applySurface();
@@ -390,8 +406,14 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
           style: PointStyle(
             color: selected ? const Color(0xFFC084FC) : const Color(0xFF38BDF8),
             // Quadratic so the 0.5x-2x slider range is clearly visible
-            // (linear 3px*scale is only a few pixels on screen).
-            size: (selected ? 8 : 4) * _s.markerScale * _s.markerScale,
+            // (linear 3px*scale is only a few pixels on screen), divided
+            // by the zoom factor so markers shrink as you zoom in and
+            // grow as you zoom out (relative to the base zoom).
+            size:
+                (selected ? 8 : 4) *
+                _s.markerScale *
+                _s.markerScale /
+                math.pow(2, _currentZoom - _baseZoom),
           ),
           onTap: () => _onCountry(alpha2),
         ),
@@ -402,39 +424,18 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
 
   // ── Globe input ────────────────────────────────────────────────────
 
-  void _showTapFeedback(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
   void _onGlobeTap(GlobeCoordinates? coords) {
     if (coords == null || _shapes == null) return;
     final rotation = _rotationSnapshot();
     final token = ++_tapToken;
-    // Instant feedback within the 300ms tap-vs-drag window instead of
-    // silence: the pill shows a spinner while we wait.
-    if (mounted) setState(() => _tapPending = true);
     _tapTimer?.cancel();
     _tapTimer = Timer(const Duration(milliseconds: 300), () {
       if (!mounted || token != _tapToken) return;
-      setState(() => _tapPending = false);
       // A rotate-drag changes the rotation; a genuine tap does not.
-      // Previously this (and ocean taps) returned silently.
-      if (_rotationSnapshot() != rotation) {
-        _showTapFeedback(_dragText);
-        return;
-      }
+      // Ocean taps and drags are silent: no popup, no snackbar.
+      if (_rotationSnapshot() != rotation) return;
       final alpha2 = _shapes?.alpha2At(coords.latitude, coords.longitude);
-      if (alpha2 == null) {
-        _showTapFeedback(_oceanText);
-        return; // Ocean tap.
-      }
+      if (alpha2 == null) return; // Ocean tap.
       _onCountry(alpha2);
     });
   }
@@ -453,10 +454,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
   }
 
   Future<void> _onCountry(String alpha2) async {
-    if (alpha2.isEmpty || alpha2 == '-99') {
-      _showTapFeedback(AppLocalizations.of(context).noMatchingNode);
-      return;
-    }
+    if (alpha2.isEmpty || alpha2 == '-99') return;
     if (!mounted) return;
     setState(() => _selectedAlpha2 = alpha2);
     _syncPoints();
@@ -560,13 +558,14 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
           else
             LayoutBuilder(
               builder: (context, constraints) {
-                final radius =
-                    (constraints.maxWidth < constraints.maxHeight
-                        ? constraints.maxWidth
-                        : constraints.maxHeight) /
-                    2 *
-                    0.45 *
-                    _s.globeScale;
+                // Base radius only; the size factor lives in the
+                // controller zoom (see _zoomForScale), which pinch zoom
+                // also drives. Explicit parentheses: the old chained
+                // `/ *` form read as if scale were in the divisor.
+                final minDim = constraints.maxWidth < constraints.maxHeight
+                    ? constraints.maxWidth
+                    : constraints.maxHeight;
+                final radius = (minDim / 2) * 0.45;
                 return Stack(
                   children: [
                     Positioned.fill(
@@ -608,6 +607,16 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
                                 controller: _globeController,
                                 onTap: _onGlobeTap,
                                 onHover: _onGlobeHover,
+                                onZoomChanged: (zoom) {
+                                  _currentZoom = zoom;
+                                  // Markers shrink as you zoom in; resync
+                                  // points when zoom moved enough to matter
+                                  // (not on every pinch tick).
+                                  if ((zoom - _lastSyncZoom).abs() > 0.05) {
+                                    _lastSyncZoom = zoom;
+                                    _syncPoints();
+                                  }
+                                },
                               ),
                             ),
                           ),
@@ -643,14 +652,6 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ),
-                    if (_tapPending) ...[
-                      const SizedBox(width: 8),
-                      const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ],
                   ],
                 ),
               ),
