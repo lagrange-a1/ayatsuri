@@ -62,13 +62,6 @@ flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/icon/icon-1024.png"
-  # Adaptive icon (API 26+): 108dp canvas, background fills the launcher
-  # mask shape, foreground sits in the 66dp safe zone. The foreground is a
-  # zoomed bust crop so the subject reads at the 48dp display size; the
-  # legacy 192px mipmap icon above is kept as the pre-API-26 fallback.
-  adaptive_icon_background: "#D22A1C"
-  adaptive_icon_foreground: "assets/icon/icon-foreground.png"
-  adaptive_icon_foreground_inset: 16
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
