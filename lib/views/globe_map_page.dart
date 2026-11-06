@@ -385,6 +385,11 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      // fade/scale/spring/none animate the sheet *content* instead of
+      // sliding the sheet itself; slide keeps the Material default.
+      sheetAnimationStyle: _s.sheetAnimation == SheetAnimation.slide
+          ? null
+          : AnimationStyle.noAnimation,
       builder: (_) => _CountrySheet(
         selection: _selection,
         alpha2: alpha2,
@@ -392,6 +397,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
         hideBlocked: _s.hideBlocked,
         probeSort: _s.probeSort,
         compact: _s.compactNodeList,
+        sheetAnimation: _s.sheetAnimation,
         onSelected: (proxyName, groupName) {
           if (mounted) {
             final l10n = AppLocalizations.of(context);
@@ -558,6 +564,7 @@ class _CountrySheet extends StatefulWidget {
     this.hideBlocked = false,
     this.probeSort = ProbeSort.delay,
     this.compact = false,
+    this.sheetAnimation = SheetAnimation.slide,
   });
 
   final ProxySelection selection;
@@ -567,6 +574,7 @@ class _CountrySheet extends StatefulWidget {
   final bool hideBlocked;
   final ProbeSort probeSort;
   final bool compact;
+  final SheetAnimation sheetAnimation;
 
   @override
   State<_CountrySheet> createState() => _CountrySheetState();
@@ -797,105 +805,219 @@ class _CountrySheetState extends State<_CountrySheet> {
         : byGroup[selectedGroup]!;
     final scheme = Theme.of(context).colorScheme;
     final error = widget.selection.error;
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.75,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  pattern?.flag ?? flagForAlpha2(widget.alpha2),
-                  style: const TextStyle(fontSize: 28),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        pattern?.name ?? widget.alpha2,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      Text(
-                        l10n.nodesCount(widget.alpha2, visible.length),
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
+    return _SheetEnter(
+      animation: widget.sheetAnimation,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    pattern?.flag ?? flagForAlpha2(widget.alpha2),
+                    style: const TextStyle(fontSize: 28),
                   ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close),
-                  tooltip: l10n.close,
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            // Class/group tabs (A/B/C/D…): pick a class, then its nodes
-            // (1…9) are shown once below as cards — not repeated per group.
-            if (byGroup.length > 1) ...[
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: byGroup.entries.map((entry) {
-                    final selected = entry.key == selectedGroup;
-                    final hasNow = entry.value.any((c) => c.isNow);
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text('${entry.key} · ${entry.value.length}'),
-                        selected: selected,
-                        avatar: hasNow
-                            ? const Icon(Icons.check, size: 16)
-                            : null,
-                        onSelected: (_) =>
-                            setState(() => _selectedGroupName = entry.key),
-                      ),
-                    );
-                  }).toList(),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          pattern?.name ?? widget.alpha2,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        Text(
+                          l10n.nodesCount(widget.alpha2, visible.length),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                    tooltip: l10n.close,
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
+              // Class/group tabs (A/B/C/D…): pick a class, then its nodes
+              // (1…9) are shown once below as cards — not repeated per group.
+              if (byGroup.length > 1) ...[
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: byGroup.entries.map((entry) {
+                      final selected = entry.key == selectedGroup;
+                      final hasNow = entry.value.any((c) => c.isNow);
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text('${entry.key} · ${entry.value.length}'),
+                          selected: selected,
+                          avatar: hasNow
+                              ? const Icon(Icons.check, size: 16)
+                              : null,
+                          onSelected: (_) =>
+                              setState(() => _selectedGroupName = entry.key),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (visible.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: Text(
+                      error != null
+                          ? l10n.failedToLoadProxies(error)
+                          : l10n.noMatchingNode,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              else
+                Flexible(
+                  child: GridView.builder(
+                    // Re-key per class tab so cards re-stagger on tab switch.
+                    key: ValueKey('cards-$selectedGroup'),
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: MediaQuery.sizeOf(context).width >= 600
+                          ? 3
+                          : 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: widget.compact ? 2.6 : 2.1,
+                    ),
+                    itemCount: visible.length,
+                    itemBuilder: (context, i) => _StaggerCard(
+                      animation: widget.sheetAnimation,
+                      index: i,
+                      child: _buildNodeCard(l10n, visible[i], scheme),
+                    ),
+                  ),
+                ),
             ],
-            if (visible.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Center(
-                  child: Text(
-                    error != null
-                        ? l10n.failedToLoadProxies(error)
-                        : l10n.noMatchingNode,
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              )
-            else
-              Flexible(
-                child: GridView.builder(
-                  shrinkWrap: true,
-                  padding: EdgeInsets.zero,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: MediaQuery.sizeOf(context).width >= 600
-                        ? 3
-                        : 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: widget.compact ? 2.6 : 2.1,
-                  ),
-                  itemCount: visible.length,
-                  itemBuilder: (context, i) =>
-                      _buildNodeCard(l10n, visible[i], scheme),
-                ),
-              ),
-          ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+/// Entrance animation for the whole sheet *content*.
+///
+/// `slide` is handled by the sheet itself (Material default), so it is a
+/// pass-through here; the other modes are used together with
+/// `AnimationStyle.noAnimation` on the sheet, so this is the only motion.
+class _SheetEnter extends StatelessWidget {
+  const _SheetEnter({required this.animation, required this.child});
+
+  final SheetAnimation animation;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    switch (animation) {
+      case SheetAnimation.slide:
+      case SheetAnimation.none:
+        return child;
+      case SheetAnimation.fade:
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: 1),
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+          builder: (_, t, c) => Opacity(opacity: t, child: c),
+          child: child,
+        );
+      case SheetAnimation.scale:
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: 1),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutBack,
+          builder: (_, t, c) =>
+              Transform.scale(scale: 0.92 + 0.08 * t, child: c),
+          child: child,
+        );
+      case SheetAnimation.spring:
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: 1),
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.elasticOut,
+          builder: (_, t, c) => Transform.scale(scale: 0.9 + 0.1 * t, child: c),
+          child: child,
+        );
+    }
+  }
+}
+
+/// Per-card staggered entrance (the `flutter_animate`-style pattern,
+/// hand-rolled with `TweenAnimationBuilder` so no package is needed).
+/// Each card starts `index * 30ms` after the previous one (capped), and
+/// the whole stagger replays when the class tab changes because the
+/// grid is re-keyed per tab.
+class _StaggerCard extends StatelessWidget {
+  const _StaggerCard({
+    required this.animation,
+    required this.index,
+    required this.child,
+  });
+
+  final SheetAnimation animation;
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (animation == SheetAnimation.none) return child;
+    const baseMs = 350;
+    final delayMs = (index * 30).clamp(0, 300);
+    final curve = animation == SheetAnimation.spring
+        ? Curves.elasticOut
+        : Curves.easeOutBack;
+    // TweenAnimationBuilder has no delay parameter, so fold the stagger
+    // delay into the total duration and map it back to 0..1 progress.
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: delayMs + baseMs),
+      builder: (_, raw, c) {
+        final p = ((raw * (delayMs + baseMs) - delayMs) / baseMs).clamp(
+          0.0,
+          1.0,
+        );
+        final t = curve.transform(p);
+        Widget out = c!;
+        switch (animation) {
+          case SheetAnimation.fade:
+            out = Opacity(opacity: t, child: out);
+          case SheetAnimation.scale:
+          case SheetAnimation.spring:
+            out = Transform.scale(scale: 0.85 + 0.15 * t, child: out);
+          case SheetAnimation.slide:
+            out = Opacity(
+              opacity: t,
+              child: Transform.translate(
+                offset: Offset(0, 16 * (1 - t)),
+                child: out,
+              ),
+            );
+          case SheetAnimation.none:
+            break;
+        }
+        return out;
+      },
+      child: child,
     );
   }
 }

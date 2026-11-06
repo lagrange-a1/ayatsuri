@@ -395,6 +395,26 @@ class SettingsPage extends StatelessWidget {
                 value: s.compactNodeList,
                 onChanged: (v) => set(s.copyWith(compactNodeList: v)),
               ),
+              const Divider(height: 32),
+              _header(context, l10n.animation),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: SheetAnimation.values.map((v) {
+                  final label = switch (v) {
+                    SheetAnimation.slide => l10n.animationSlide,
+                    SheetAnimation.fade => l10n.animationFade,
+                    SheetAnimation.scale => l10n.animationScale,
+                    SheetAnimation.spring => l10n.animationSpring,
+                    SheetAnimation.none => l10n.animationNone,
+                  };
+                  return ChoiceChip(
+                    label: Text(label),
+                    selected: s.sheetAnimation == v,
+                    onSelected: (_) => set(s.copyWith(sheetAnimation: v)),
+                  );
+                }).toList(),
+              ),
             ],
           ),
         );

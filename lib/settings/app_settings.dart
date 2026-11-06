@@ -48,6 +48,27 @@ enum InitialView {
 
 enum ProbeSort { delay, name }
 
+/// Entrance animation for the country node sheet (and its node cards).
+/// Built only from framework primitives (`AnimationStyle` for the sheet
+/// itself, `TweenAnimationBuilder` stagger for the cards) so no extra
+/// animation package is needed.
+enum SheetAnimation {
+  /// Material default: the sheet slides up; cards stagger in.
+  slide,
+
+  /// Content fades in (sheet itself does not slide).
+  fade,
+
+  /// Content scales up from slightly small (sheet itself does not slide).
+  scale,
+
+  /// Content scales up with an elastic/spring overshoot.
+  spring,
+
+  /// No entrance animation at all.
+  none,
+}
+
 /// Which earth surface the globe shows: follow the system brightness,
 /// force the day texture, or force the night texture.
 enum GlobeTime {
@@ -128,6 +149,7 @@ Map<String, dynamic> _normalize(Map<String, dynamic> j) {
   enumKey('variant', DynamicSchemeVariant.values, DynamicSchemeVariant.content);
   enumKey('initialView', InitialView.values, InitialView.auto);
   enumKey('probeSort', ProbeSort.values, ProbeSort.delay);
+  enumKey('sheetAnimation', SheetAnimation.values, SheetAnimation.slide);
   enumKey('locale', AppLocale.values, AppLocale.system);
   enumKey('globeQuality', GlobeTextureQuality.values, GlobeTextureQuality.k8);
   enumKey('globeTime', GlobeTime.values, GlobeTime.day);
@@ -203,6 +225,7 @@ abstract class AppSettings with _$AppSettings {
     /// Periodic full-probe interval in seconds; -1 disables the timer.
     @JsonKey(name: 'probeInterval') @Default(30) int probeIntervalSec,
     @JsonKey(name: 'compact') @Default(false) bool compactNodeList,
+    @Default(SheetAnimation.slide) SheetAnimation sheetAnimation,
     @Default(AppLocale.system) AppLocale locale,
   }) = _AppSettings;
 

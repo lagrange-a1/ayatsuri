@@ -530,6 +530,42 @@ abstract class AppLocalizations {
   /// **'Compact node list'**
   String get compactNodeList;
 
+  /// No description provided for @animation.
+  ///
+  /// In en, this message translates to:
+  /// **'Animation'**
+  String get animation;
+
+  /// No description provided for @animationSlide.
+  ///
+  /// In en, this message translates to:
+  /// **'Slide up'**
+  String get animationSlide;
+
+  /// No description provided for @animationFade.
+  ///
+  /// In en, this message translates to:
+  /// **'Fade in'**
+  String get animationFade;
+
+  /// No description provided for @animationScale.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale up'**
+  String get animationScale;
+
+  /// No description provided for @animationSpring.
+  ///
+  /// In en, this message translates to:
+  /// **'Spring'**
+  String get animationSpring;
+
+  /// No description provided for @animationNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get animationNone;
+
   /// No description provided for @language.
   ///
   /// In en, this message translates to:

@@ -241,6 +241,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get compactNodeList => '紧凑节点列表';
 
   @override
+  String get animation => '动画';
+
+  @override
+  String get animationSlide => '上滑';
+
+  @override
+  String get animationFade => '淡入';
+
+  @override
+  String get animationScale => '缩放';
+
+  @override
+  String get animationSpring => '弹性';
+
+  @override
+  String get animationNone => '无';
+
+  @override
   String get language => '语言';
 
   @override

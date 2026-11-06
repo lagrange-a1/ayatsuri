@@ -45,6 +45,9 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
       GlobeTime.day,
   probeIntervalSec: (json['probeInterval'] as num?)?.toInt() ?? 30,
   compactNodeList: json['compact'] as bool? ?? false,
+  sheetAnimation:
+      $enumDecodeNullable(_$SheetAnimationEnumMap, json['sheetAnimation']) ??
+      SheetAnimation.slide,
   locale:
       $enumDecodeNullable(_$AppLocaleEnumMap, json['locale']) ??
       AppLocale.system,
@@ -76,6 +79,7 @@ Map<String, dynamic> _$AppSettingsToJson(_AppSettings instance) =>
       'globeTime': _$GlobeTimeEnumMap[instance.globeTime]!,
       'probeInterval': instance.probeIntervalSec,
       'compact': instance.compactNodeList,
+      'sheetAnimation': _$SheetAnimationEnumMap[instance.sheetAnimation]!,
       'locale': _$AppLocaleEnumMap[instance.locale]!,
     };
 
@@ -115,6 +119,14 @@ const _$GlobeTimeEnumMap = {
   GlobeTime.system: 'system',
   GlobeTime.day: 'day',
   GlobeTime.night: 'night',
+};
+
+const _$SheetAnimationEnumMap = {
+  SheetAnimation.slide: 'slide',
+  SheetAnimation.fade: 'fade',
+  SheetAnimation.scale: 'scale',
+  SheetAnimation.spring: 'spring',
+  SheetAnimation.none: 'none',
 };
 
 const _$AppLocaleEnumMap = {

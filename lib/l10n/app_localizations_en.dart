@@ -241,6 +241,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get compactNodeList => 'Compact node list';
 
   @override
+  String get animation => 'Animation';
+
+  @override
+  String get animationSlide => 'Slide up';
+
+  @override
+  String get animationFade => 'Fade in';
+
+  @override
+  String get animationScale => 'Scale up';
+
+  @override
+  String get animationSpring => 'Spring';
+
+  @override
+  String get animationNone => 'None';
+
+  @override
   String get language => 'Language';
 
   @override
