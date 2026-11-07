@@ -76,6 +76,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
   bool _geoLoading = true;
   DateTime? _lastProbeAt;
   Timer? _tapTimer;
+  Timer? _syncPointsTimer;
   Timer? _probeTimer;
   Timer? _immediateProbeTimer;
   bool _probingAll = false;
@@ -170,6 +171,15 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
       isRotating: _s.autoRotate,
       rotationSpeed: _s.rotationSpeed,
       isZoomEnabled: true,
+      // Touchpad pinch on Linux arrives as high-frequency scroll
+      // (PointerScrollEvent) bursts, not pinch gestures. With the
+      // default center-zoom mode the package routes every scroll
+      // event through a 300ms zoom animation and restarts it from
+      // zero each time, so the globe trails the gesture badly.
+      // zoomToMousePosition selects the package's immediate scroll
+      // path instead; the pan offset it would accumulate is reset
+      // in [_onGlobeZoomChanged], so the globe stays centred.
+      zoomToMousePosition: true,
       zoom: _zoomForScale(_s.globeScale),
       minZoom: -1.5,
       maxZoom: 5,
@@ -185,6 +195,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
   void dispose() {
     _settings.removeListener(_onSettingsChanged);
     _tapTimer?.cancel();
+    _syncPointsTimer?.cancel();
     _probeTimer?.cancel();
     _immediateProbeTimer?.cancel();
     // The package's dispose() touches a late AnimationController that only
@@ -278,6 +289,10 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
       _applySurface();
     }
     _syncPoints();
+    // _syncPoints() above just rebuilt markers at the new zoom, so the
+    // debounced zoom callback must compare against this zoom, not the
+    // pre-slider one.
+    _lastSyncZoom = _currentZoom;
     if (mounted) setState(() {});
   }
 
@@ -373,6 +388,34 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
         );
       });
     }
+  }
+
+  /// Zoom callback from the globe (pinch, scroll wheel, touchpad
+  /// pinch-as-scroll, settings slider).
+  ///
+  /// Touchpad scroll bursts fire this many times per gesture; the
+  /// pan offset left by the package's zoom-to-cursor path is reset
+  /// here so the globe stays centred, and the marker resync is
+  /// trailing-debounced — rebuilding every marker point on every
+  /// scroll tick was a large part of the perceived lag.
+  void _onGlobeZoomChanged(double zoom) {
+    _currentZoom = zoom;
+    _globeController.panOffsetX = 0;
+    _globeController.panOffsetY = 0;
+    if ((_currentZoom - _lastSyncZoom).abs() > 0.05) {
+      _scheduleSyncPoints();
+    }
+  }
+
+  void _scheduleSyncPoints() {
+    _syncPointsTimer?.cancel();
+    _syncPointsTimer = Timer(const Duration(milliseconds: 60), () {
+      if (!mounted) return;
+      if ((_currentZoom - _lastSyncZoom).abs() > 0.05) {
+        _lastSyncZoom = _currentZoom;
+        _syncPoints();
+      }
+    });
   }
 
   /// Style size for a marker point at the current zoom.
@@ -621,16 +664,7 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
                                 controller: _globeController,
                                 onTap: _onGlobeTap,
                                 onHover: _onGlobeHover,
-                                onZoomChanged: (zoom) {
-                                  _currentZoom = zoom;
-                                  // Markers shrink as you zoom in; resync
-                                  // points when zoom moved enough to matter
-                                  // (not on every pinch tick).
-                                  if ((zoom - _lastSyncZoom).abs() > 0.05) {
-                                    _lastSyncZoom = zoom;
-                                    _syncPoints();
-                                  }
-                                },
+                                onZoomChanged: _onGlobeZoomChanged,
                               ),
                             ),
                           ),
