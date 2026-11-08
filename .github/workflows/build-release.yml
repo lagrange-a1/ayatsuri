@@ -34,7 +34,7 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      # Release signing: every tagged release must use the SAME keystore,
+      # Release signing: every CI build must use the SAME keystore,
       # otherwise phones with an older install reject the new APK
       # (signature mismatch -> getPackageInfo null / cannot install).
       # Required GitHub Secrets (one-time setup):
@@ -45,15 +45,23 @@ jobs:
       - name: Set up release keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            mkdir -p android/app
-            echo "$KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
-            echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/android/app/release.keystore" >> "$GITHUB_ENV"
-            echo "Release keystore written."
-          else
-            echo "::warning::No KEYSTORE_BASE64 secret: falling back to debug signing. Tagged (v*) builds will fail in Gradle on purpose."
+          missing=()
+          [ -z "$KEYSTORE_BASE64" ] && missing+=("KEYSTORE_BASE64")
+          [ -z "$KEY_ALIAS" ] && missing+=("KEY_ALIAS")
+          [ -z "$KEY_STORE_PASSWORD" ] && missing+=("KEY_STORE_PASSWORD")
+          [ -z "$KEY_PASSWORD" ] && missing+=("KEY_PASSWORD")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing required GitHub Secret(s): ${missing[*]}. All four secrets (KEYSTORE_BASE64, KEY_ALIAS, KEY_STORE_PASSWORD, KEY_PASSWORD) are required on any CI build; refusing to proceed to avoid a debug-signed APK."
+            exit 1
           fi
+          mkdir -p android/app
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
+          echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/android/app/release.keystore" >> "$GITHUB_ENV"
+          echo "Release keystore written."
 
       - name: Build APK (release, split-per-ABI)
         env:
@@ -64,6 +72,39 @@ jobs:
 
       - name: List outputs
         run: ls -lh build/app/outputs/flutter-apk/
+
+      - name: Verify APK signature
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          BUILD_TOOLS_DIR="$(ls -d "$SDK_ROOT"/build-tools/* 2>/dev/null | sort -V | tail -n 1)"
+          if [ -z "$BUILD_TOOLS_DIR" ]; then
+            echo "::error::No build-tools found under ANDROID_HOME=$SDK_ROOT"
+            exit 1
+          fi
+          APKSIGNER="$BUILD_TOOLS_DIR/apksigner"
+          echo "Using apksigner: $APKSIGNER"
+          shopt -s nullglob
+          apks=()
+          for apk in build/app/outputs/flutter-apk/*.apk; do apks+=("$apk"); done
+          shopt -u nullglob
+          if [ ${#apks[@]} -eq 0 ]; then
+            echo "::error::No APKs found in build/app/outputs/flutter-apk/"
+            exit 1
+          fi
+          for apk in "${apks[@]}"; do
+            echo "Verifying $apk"
+            if ! cert_output="$("$APKSIGNER" verify --print-certs "$apk" 2>&1)"; then
+              echo "$cert_output"
+              echo "::error::apksigner verify failed for $apk"
+              exit 1
+            fi
+            echo "$cert_output"
+            if echo "$cert_output" | grep -qi "Android Debug"; then
+              echo "::error::APK $apk is debug-signed (certificate DN contains 'Android Debug'); refusing to upload"
+              exit 1
+            fi
+          done
+          echo "All APKs verified as release-signed."
 
       - name: Upload APKs as artifact
         uses: actions/upload-artifact@v4
