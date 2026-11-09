@@ -19,7 +19,7 @@ void main() async {
     // so the page renders its placeholder instead of the real WebView.
     expect(find.text('Select a node · Globe'), findsOneWidget);
     expect(find.text('Globe (3D unavailable in tests)'), findsOneWidget);
-    expect(find.text('Tap a country'), findsOneWidget);
+    expect(find.text('Tap a Country/Region'), findsOneWidget);
     expect(find.byIcon(Icons.public), findsOneWidget);
     expect(find.byIcon(Icons.info), findsOneWidget);
 

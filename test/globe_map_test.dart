@@ -16,7 +16,7 @@ void main() {
     expect(find.byKey(const ValueKey('globe-empty')), findsNothing);
     // Globe placeholder and hint remain visible behind the indicator.
     expect(find.text('Globe (3D unavailable in tests)'), findsOneWidget);
-    expect(find.text('Tap a country'), findsOneWidget);
+    expect(find.text('Tap a Country/Region'), findsOneWidget);
     // Flush pending timers (load retries) before disposal.
     await tester.pump(const Duration(seconds: 8));
     await tester.pumpAndSettle();
