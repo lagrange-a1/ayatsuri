@@ -143,9 +143,17 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
     if (resolved == _appliedSurface) return;
     _appliedSurface = resolved;
     _globeController.loadSurface(AssetImage(resolved));
-    // The night texture stays bound for the day/night cycle; the visible
-    // one above is whichever of day/night the time mode picks.
-    _globeController.loadNightSurface(AssetImage(_s.nightSurfaceAsset));
+    // Night texture intentionally NOT bound here: this app never enables
+    // the package day/night cycle (see controller below), so the package
+    // never samples nightSurface in either renderer (GPU: gated by
+    // isDayNightCycleEnabled; CPU: same gate). The globeTime feature is
+    // implemented by swapping the visible surface via loadSurface alone.
+    // The extra loadNightSurface used to force a second
+    // convertImageToUint32List + notifyListeners + shader sampler
+    // rebind on every surface swap, increasing the chance of transient
+    // shader paint errors that permanently trip the package's
+    // 3-error CPU fallback (diag-globe-stutter H1: CPU path lags the
+    // markers and mirrors lon).
   }
 
   @override
@@ -166,11 +174,16 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
     _appliedSurface = _s.daySurfaceAsset;
     _globeController = FlutterEarthGlobeController(
       // Match the upstream example's setup: day surface + night surface.
+      // Night surface intentionally omitted: globeTime swaps the visible
+      // surface via loadSurface (see _applySurface); the package
+      // day/night cycle (which would sample nightSurface) stays disabled
+      // so the GPU shader keeps sampler 1 bound to a stable fallback
+      // instead of rebinding on every brightness flip (H1 prevention).
       surface: AssetImage(_s.daySurfaceAsset),
-      nightSurface: AssetImage(_s.nightSurfaceAsset),
       isRotating: _s.autoRotate,
       rotationSpeed: _s.rotationSpeed,
       isZoomEnabled: true,
+      isDayNightCycleEnabled: false,
       // Touchpad pinch on Linux arrives as high-frequency scroll
       // (PointerScrollEvent) bursts, not pinch gestures. With the
       // default center-zoom mode the package routes every scroll
