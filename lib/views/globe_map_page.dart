@@ -672,12 +672,14 @@ class _GlobeMapPageState extends State<GlobeMapPage> {
                                   },
                                 ),
                               },
-                              child: FlutterEarthGlobe(
-                                radius: radius,
-                                controller: _globeController,
-                                onTap: _onGlobeTap,
-                                onHover: _onGlobeHover,
-                                onZoomChanged: _onGlobeZoomChanged,
+                              child: RepaintBoundary(
+                                child: FlutterEarthGlobe(
+                                  radius: radius,
+                                  controller: _globeController,
+                                  onTap: _onGlobeTap,
+                                  onHover: _onGlobeHover,
+                                  onZoomChanged: _onGlobeZoomChanged,
+                                ),
                               ),
                             ),
                           ),

@@ -218,7 +218,7 @@ abstract class AppSettings with _$AppSettings {
     @Default(false) bool hideBlocked,
     @Default(ProbeSort.delay) ProbeSort probeSort,
     @JsonKey(name: 'globeQuality')
-    @Default(GlobeTextureQuality.k2)
+    @Default(GlobeTextureQuality.k8)
     GlobeTextureQuality globeQuality,
     @JsonKey(name: 'globeTime') @Default(GlobeTime.day) GlobeTime globeTime,
 
