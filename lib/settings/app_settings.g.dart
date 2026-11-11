@@ -39,7 +39,7 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
       ProbeSort.delay,
   globeQuality:
       $enumDecodeNullable(_$GlobeTextureQualityEnumMap, json['globeQuality']) ??
-      GlobeTextureQuality.k2,
+      GlobeTextureQuality.k8,
   globeTime:
       $enumDecodeNullable(_$GlobeTimeEnumMap, json['globeTime']) ??
       GlobeTime.day,
@@ -51,6 +51,8 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
   locale:
       $enumDecodeNullable(_$AppLocaleEnumMap, json['locale']) ??
       AppLocale.system,
+  emaAlpha: (json['emaAlpha'] as num?)?.toDouble() ?? 0.2,
+  hysteresisMs: (json['hysteresisMs'] as num?)?.toInt() ?? 50,
 );
 
 Map<String, dynamic> _$AppSettingsToJson(_AppSettings instance) =>
@@ -81,6 +83,8 @@ Map<String, dynamic> _$AppSettingsToJson(_AppSettings instance) =>
       'compact': instance.compactNodeList,
       'sheetAnimation': _$SheetAnimationEnumMap[instance.sheetAnimation]!,
       'locale': _$AppLocaleEnumMap[instance.locale]!,
+      'emaAlpha': instance.emaAlpha,
+      'hysteresisMs': instance.hysteresisMs,
     };
 
 const _$ThemeModeEnumMap = {

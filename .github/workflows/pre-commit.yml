@@ -10,18 +10,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       # Pin the same Flutter/Dart as local dev (3.38.7) so the formatter
       # and analyzer match; `dart analyze` needs `flutter pub get` first.
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: '3.38.7'
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
-      # .env is a gitignored asset; without a placeholder the analyzer
-      # warns (asset_does_not_exist) and --fatal-warnings fails the hook.
-      - name: Ensure .env exists (gitignored asset)
+
+      # Ensure .env exists (gitignored asset; without a placeholder the analyzer
+      # warns (asset_does_not_exist) and --fatal-warnings fails the hook.)
+      - name: Ensure .env exists
         run: |
           if [ ! -f .env ]; then echo '# placeholder for CI analyze' > .env; fi
+
+      # Check Rust code
+      - name: Check Rust
+        run: cd rust/scheduler && cargo check --release
+
       - uses: pre-commit/action@v3.0.1

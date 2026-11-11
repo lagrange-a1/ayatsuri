@@ -12,6 +12,7 @@ import 'package:ayatsuri/l10n/app_localizations.dart';
 
 import '../endpoints.dart';
 import 'country_map.dart';
+import 'scheduler_wrapper.dart';
 
 class ProxyItem {
   const ProxyItem({
@@ -62,6 +63,7 @@ class ProxySelection {
   ProxySelection({MihomoAPI? api}) : _api = api ?? MihomoAPI();
 
   final MihomoAPI _api;
+  final SchedulerWrapper _scheduler = SchedulerWrapper();
 
   Map<String, ProxyItem>? _proxies;
   List<GroupItem>? _groups;
@@ -222,17 +224,20 @@ class ProxySelection {
       final delay = (data['delay'] as num?)?.toInt();
       if (delay == null) return false;
       await _updateDelay(name, delay);
+      await _scheduler.updateLatency(name, delay);
       return true;
     } on DioException catch (e) {
       final status = e.response?.statusCode;
       if (status == 504) {
         // Probe timed out at the kernel.
         await _updateDelay(name, kDelayTimeout);
+        await _scheduler.updateLatency(name, kDelayTimeout);
         return true;
       }
       if (status == 503) {
         // Probe ran but the node is unreachable/blocked.
         await _updateDelay(name, 0);
+        await _scheduler.updateLatency(name, 0);
         return true;
       }
       // No HTTP response (controller unreachable/offline) or an

@@ -179,6 +179,11 @@ Map<String, dynamic> _normalize(Map<String, dynamic> j) {
   for (final key in ['bg', 'bgPath', 'serverUrl', 'secret']) {
     if (m[key] != null && m[key] is! String) m[key] = null;
   }
+  // Scheduler settings
+  final rawEma = m['emaAlpha'];
+  m['emaAlpha'] = rawEma is num ? rawEma.toDouble().clamp(0.0, 1.0) : 0.2;
+  final rawHyst = m['hysteresisMs'];
+  m['hysteresisMs'] = rawHyst is num ? rawHyst.toInt().clamp(0, 5000) : 50;
   return m;
 }
 
@@ -227,6 +232,12 @@ abstract class AppSettings with _$AppSettings {
     @JsonKey(name: 'compact') @Default(false) bool compactNodeList,
     @Default(SheetAnimation.slide) SheetAnimation sheetAnimation,
     @Default(AppLocale.system) AppLocale locale,
+
+    /// EMA smoothing factor for latency (0=old data only, 1=only new data).
+    @Default(0.2) double emaAlpha,
+
+    /// Hysteresis threshold in milliseconds to avoid switching unless new is better by at least this amount.
+    @Default(50) int hysteresisMs,
   }) = _AppSettings;
 
   const AppSettings._();
